@@ -8,10 +8,9 @@ compile_commands.json
 .cache/
 benchmark_graphs
 benchmark_results
-build/
-build-debug/
-build-profile*/
+build*/
 profile_results/
 CMakeUserPresets.json
 .dataset
 .vscode/tasks.json
+others/

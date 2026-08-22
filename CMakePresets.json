@@ -68,6 +68,30 @@
       }
     },
     {
+      "name": "debug-none",
+      "displayName": "Debug - No Databases",
+      "description": "Debug build with all database bindings disabled (core + null adapter only)",
+      "binaryDir": "${sourceDir}/build-debug-none",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BIND_SQLITE": "OFF",
+        "BIND_ROCKSDB": "OFF",
+        "BIND_LMDB": "OFF",
+        "BIND_LEVELDB": "OFF",
+        "BIND_WIREDTIGER": "OFF",
+        "BIND_LEAVES": "OFF",
+        "BIND_REDIS": "OFF",
+        "BIND_AEROSPIKE": "OFF",
+        "BIND_BADGER": "OFF",
+        "WITH_ZLIB": "ON",
+        "WITH_LZ4": "OFF",
+        "WITH_SNAPPY": "OFF",
+        "WITH_ZSTD": "OFF",
+        "WITH_BZ2": "OFF"
+      }
+    },
+    {
       "name": "debug-all",
       "displayName": "Debug - All Databases",
       "description": "Debug build with all database bindings enabled",
@@ -107,6 +131,12 @@
       "configurePreset": "leaves-only",
       "displayName": "Build Leaves Only",
       "description": "Build with only Leaves"
+    },
+    {
+      "name": "debug-none",
+      "configurePreset": "debug-none",
+      "displayName": "Debug Build - No Databases",
+      "description": "Debug build with all database bindings disabled (core + null adapter only)"
     },
     {
       "name": "debug-all",

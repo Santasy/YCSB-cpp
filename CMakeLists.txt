@@ -44,6 +44,8 @@ option(BIND_REDIS "build with redis" OFF)
 option(BIND_AEROSPIKE "build with aerospike" OFF)
 option(BIND_BADGER "build with badger" OFF)
 
+option(BIND_BTREE "build with cpp-btree" ON)
+
 option(WITH_ZLIB "linking YCSB with zlib; needed by HdrHISTOGRAM, DO NOT TURN OFF" ON)
 option(WITH_LZ4 "linking YCSB with lz4" OFF)
 option(WITH_SNAPPY "linking YCSB with snappy" OFF)
@@ -63,6 +65,51 @@ if(NOT MSVC)
         PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter")
 endif()
 target_include_directories(ycsb PRIVATE ${PROJECT_SOURCE_DIR})
+
+if (BIND_BTREE)
+    message(STATUS "BIND_BTREE - ON")
+    file(GLOB_RECURSE YCSB_BTREE_SRC "others/adapters/cpp-btree/*.cc")
+    target_sources(ycsb PRIVATE ${YCSB_BTREE_SRC})
+
+    if(DEFINED btree_DIR AND EXISTS "${btree_DIR}/btree-targets.cmake")
+        find_package(btree CONFIG REQUIRED)
+        target_link_libraries(ycsb PRIVATE btree::btree)
+        message(STATUS "Found btree package target")
+    else()
+        target_include_directories(ycsb PRIVATE /home/sebacv/Tesis/benchYCSB/YCSB-cpp/others/cpp-btree)
+        message(STATUS "BTree package export not available; falling back to local include path")
+    endif()
+
+    # Suppress pedantic and unused-parameter warnings for Btree headers/adapter
+    if(NOT MSVC)
+        set_source_files_properties(${YCSB_BTREE_SRC}
+            PROPERTIES COMPILE_OPTIONS "-Wno-pedantic;-Wno-unused-parameter")
+    endif()
+
+    # Add specific compiler optimizations for BTree files with GCC only in Release mode
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_BUILD_TYPE STREQUAL "Release")
+        foreach(BTREE_FILE ${YCSB_BTREE_SRC})
+            set_source_files_properties(${BTREE_FILE} PROPERTIES
+                COMPILE_FLAGS "-DNDEBUG -DBTREE_SINGLE_PROCESS -g -march=native -O3 -funroll-loops -flto=auto"
+            )
+        endforeach()
+        message(STATUS "Applied GCC optimizations to BTree files: -DNDEBUG -DBTREE_SINGLE_PROCESS -g -march=native -O3 -funroll-loops -flto=auto")
+    endif()
+
+    # Add BTREE_SINGLE_PROCESS for BTree files in Debug mode
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        foreach(BTREE_FILE ${YCSB_BTREE_SRC})
+            set_source_files_properties(${BTREE_FILE} PROPERTIES
+                COMPILE_FLAGS "-DBTREE_SINGLE_PROCESS -g -O0"
+            )
+        endforeach()
+        message(STATUS "Applied Debug flags to BTree files: -DBTREE_SINGLE_PROCESS -g -O0")
+    endif()
+    
+    message(STATUS "Configured BTree binding")
+else()
+    message(STATUS "BIND_BTREE - OFF")
+endif()
 
 if (BIND_ROCKSDB)
     message(STATUS "BIND_ROCKSDB - ON")
