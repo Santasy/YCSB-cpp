@@ -48,17 +48,27 @@ inline uint64_t FNVHash64(uint64_t val) {
 
 inline uint64_t Hash(uint64_t val) { return FNVHash64(val); }
 
-inline uint32_t ThreadLocalRandomInt() {
+inline std::minstd_rand &ThreadLocalRng() {
   static thread_local std::random_device rd;
   static thread_local std::minstd_rand rn(rd());
-  return rn();
+  return rn;
 }
 
+///
+/// Re-seeds the calling thread's local random engine. Used to make the
+/// RNG stream (and therefore pre-generated datasets) reproducible across
+/// runs. Only affects the current thread; datasets are generated from the
+/// main thread, so a single call before generation is sufficient.
+///
+inline void SeedThreadLocalRng(uint64_t seed) {
+  ThreadLocalRng().seed(static_cast<std::minstd_rand::result_type>(seed));
+}
+
+inline uint32_t ThreadLocalRandomInt() { return ThreadLocalRng()(); }
+
 inline double ThreadLocalRandomDouble(double min = 0.0, double max = 1.0) {
-  static thread_local std::random_device rd;
-  static thread_local std::minstd_rand rn(rd());
   static thread_local std::uniform_real_distribution<double> uniform(min, max);
-  return uniform(rn);
+  return uniform(ThreadLocalRng());
 }
 
 ///

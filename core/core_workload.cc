@@ -122,14 +122,40 @@ const std::string CoreWorkload::ZIPFIAN_CONST_PROPERTY = "zipfian_const";
 const std::string CoreWorkload::BATCH_SIZE_PROPERTY = "batch_size";
 const std::string CoreWorkload::BATCH_SIZE_DEFAULT = "1";
 
+const std::string CoreWorkload::SEED_PROPERTY = "seed";
+const std::string CoreWorkload::SEED_DEFAULT = "";
+
+namespace {
+
+// Decorrelation salts so independent UniformGenerator instances (key / field /
+// scan / field-length) do not emit identical streams when seeded identically.
+constexpr uint64_t kKeyUniformSalt = 0x6a09e667f3bcc909ull;
+constexpr uint64_t kFieldUniformSalt = 0xbb67ae8584caa73bull;
+constexpr uint64_t kScanLenUniformSalt = 0x3c6ef372fe94f82bull;
+constexpr uint64_t kFieldLenUniformSalt = 0xa54ff53a5f1d36f1ull;
+
+}  // namespace
+
 namespace ycsbc {
 
 void CoreWorkload::Init(const utils::Properties &p) {
   table_name_ = p.GetProperty(TABLENAME_PROPERTY,TABLENAME_DEFAULT);
 
+  // Seed handling: an explicit `seed` makes the whole generator stream (and
+  // therefore the pre-generated datasets) reproducible across runs. When unset
+  // the thread-local RNG keeps its non-deterministic random_device seeding and
+  // uniform generators get a per-process random engine seed.
+  const std::string &seed_str = p.GetProperty(SEED_PROPERTY, SEED_DEFAULT);
+  if (!seed_str.empty()) {
+    seed_ = std::stoull(seed_str);
+    utils::SeedThreadLocalRng(seed_);
+  } else {
+    seed_ = utils::ThreadLocalRandomInt();
+  }
+
   field_count_ = std::stoi(p.GetProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_DEFAULT));
   field_prefix_ = p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
-  field_len_generator_ = GetFieldLenGenerator(p);
+  field_len_generator_ = GetFieldLenGenerator(p, seed_);
 
   // Pre-build field names to avoid string construction in hot path
   field_names_.reserve(field_count_);
@@ -195,7 +221,8 @@ void CoreWorkload::Init(const utils::Properties &p) {
   transaction_insert_key_sequence_ = new AcknowledgedCounterGenerator(record_count_);
 
   if (request_dist == "uniform") {
-    key_chooser_ = new UniformGenerator(0, record_count_ - 1);
+    key_chooser_ = new UniformGenerator(0, record_count_ - 1,
+                                        seed_ ^ kKeyUniformSalt);
 
   } else if (request_dist == "zipfian") {
     // If the number of keys changes, we don't want to change popular keys.
@@ -217,10 +244,12 @@ void CoreWorkload::Init(const utils::Properties &p) {
     throw utils::Exception("Unknown request distribution: " + request_dist);
   }
 
-  field_chooser_ = new UniformGenerator(0, field_count_ - 1);
+  field_chooser_ = new UniformGenerator(0, field_count_ - 1,
+                                        seed_ ^ kFieldUniformSalt);
 
   if (scan_len_dist == "uniform") {
-    scan_len_chooser_ = new UniformGenerator(min_scan_len, max_scan_len);
+    scan_len_chooser_ = new UniformGenerator(min_scan_len, max_scan_len,
+                                             seed_ ^ kScanLenUniformSalt);
   } else if (scan_len_dist == "zipfian") {
     scan_len_chooser_ = new ZipfianGenerator(min_scan_len, max_scan_len);
   } else {
@@ -230,34 +259,77 @@ void CoreWorkload::Init(const utils::Properties &p) {
 }
 
 std::string CoreWorkload::GetPropertiesHash(const utils::Properties &p) {
+  // Canonical, ordered signature of every property that changes the generated
+  // dataset bytes (plus threadcount/seed, which change the per-thread split and
+  // the RNG stream). Missing keys are folded in with their defaults so a config
+  // that relies on defaults still reuses previously generated datasets.
   std::string str_to_hash;
-  str_to_hash += p.GetProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_DEFAULT);
-  str_to_hash += p.GetProperty(UPDATE_PROPORTION_PROPERTY, UPDATE_PROPORTION_DEFAULT);
-  str_to_hash += p.GetProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_DEFAULT);
-  str_to_hash += p.GetProperty(SCAN_PROPORTION_PROPERTY, SCAN_PROPORTION_DEFAULT);
-  str_to_hash += p.GetProperty(READMODIFYWRITE_PROPORTION_PROPERTY, READMODIFYWRITE_PROPORTION_DEFAULT);
-  str_to_hash += p.GetProperty(REQUEST_DISTRIBUTION_PROPERTY, REQUEST_DISTRIBUTION_DEFAULT);
-  str_to_hash += p.GetProperty(MIN_SCAN_LENGTH_PROPERTY, MIN_SCAN_LENGTH_DEFAULT);
-  str_to_hash += p.GetProperty(MAX_SCAN_LENGTH_PROPERTY, MAX_SCAN_LENGTH_DEFAULT);
-  str_to_hash += p.GetProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY, SCAN_LENGTH_DISTRIBUTION_DEFAULT);
-  str_to_hash += p.GetProperty(INSERT_ORDER_PROPERTY, INSERT_ORDER_DEFAULT);
-  str_to_hash += p.GetProperty(HASH_ALGO_PROPERTY, HASH_ALGO_DEFAULT);
+  auto add = [&str_to_hash](const std::string &key, const std::string &value) {
+    str_to_hash += key + "=" + value + ";";
+  };
 
+  add(READ_PROPORTION_PROPERTY,
+      p.GetProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_DEFAULT));
+  add(UPDATE_PROPORTION_PROPERTY,
+      p.GetProperty(UPDATE_PROPORTION_PROPERTY, UPDATE_PROPORTION_DEFAULT));
+  add(INSERT_PROPORTION_PROPERTY,
+      p.GetProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_DEFAULT));
+  add(SCAN_PROPORTION_PROPERTY,
+      p.GetProperty(SCAN_PROPORTION_PROPERTY, SCAN_PROPORTION_DEFAULT));
+  add(READMODIFYWRITE_PROPORTION_PROPERTY,
+      p.GetProperty(READMODIFYWRITE_PROPORTION_PROPERTY,
+                    READMODIFYWRITE_PROPORTION_DEFAULT));
+  add(REQUEST_DISTRIBUTION_PROPERTY,
+      p.GetProperty(REQUEST_DISTRIBUTION_PROPERTY,
+                    REQUEST_DISTRIBUTION_DEFAULT));
   if (p.ContainsKey(ZIPFIAN_CONST_PROPERTY)) {
-    str_to_hash += p.GetProperty(ZIPFIAN_CONST_PROPERTY);
+    add(ZIPFIAN_CONST_PROPERTY, p.GetProperty(ZIPFIAN_CONST_PROPERTY));
+  } else {
+    add(ZIPFIAN_CONST_PROPERTY, "");
   }
+  add(MIN_SCAN_LENGTH_PROPERTY,
+      p.GetProperty(MIN_SCAN_LENGTH_PROPERTY, MIN_SCAN_LENGTH_DEFAULT));
+  add(MAX_SCAN_LENGTH_PROPERTY,
+      p.GetProperty(MAX_SCAN_LENGTH_PROPERTY, MAX_SCAN_LENGTH_DEFAULT));
+  add(SCAN_LENGTH_DISTRIBUTION_PROPERTY,
+      p.GetProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY,
+                    SCAN_LENGTH_DISTRIBUTION_DEFAULT));
+  add(INSERT_ORDER_PROPERTY,
+      p.GetProperty(INSERT_ORDER_PROPERTY, INSERT_ORDER_DEFAULT));
+  add(HASH_ALGO_PROPERTY, p.GetProperty(HASH_ALGO_PROPERTY, HASH_ALGO_DEFAULT));
+  add(INSERT_START_PROPERTY,
+      p.GetProperty(INSERT_START_PROPERTY, INSERT_START_DEFAULT));
+  add(ZERO_PADDING_PROPERTY,
+      p.GetProperty(ZERO_PADDING_PROPERTY, ZERO_PADDING_DEFAULT));
+  add(FIELD_COUNT_PROPERTY,
+      p.GetProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_DEFAULT));
+  add(FIELD_LENGTH_PROPERTY,
+      p.GetProperty(FIELD_LENGTH_PROPERTY, FIELD_LENGTH_DEFAULT));
+  add(FIELD_LENGTH_DISTRIBUTION_PROPERTY,
+      p.GetProperty(FIELD_LENGTH_DISTRIBUTION_PROPERTY,
+                    FIELD_LENGTH_DISTRIBUTION_DEFAULT));
+  add(FIELD_NAME_PREFIX, p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT));
+  add(READ_ALL_FIELDS_PROPERTY,
+      p.GetProperty(READ_ALL_FIELDS_PROPERTY, READ_ALL_FIELDS_DEFAULT));
+  add(WRITE_ALL_FIELDS_PROPERTY,
+      p.GetProperty(WRITE_ALL_FIELDS_PROPERTY, WRITE_ALL_FIELDS_DEFAULT));
+  add(RECORD_COUNT_PROPERTY, p.GetProperty(RECORD_COUNT_PROPERTY));
+  add(BATCH_SIZE_PROPERTY,
+      p.GetProperty(BATCH_SIZE_PROPERTY, BATCH_SIZE_DEFAULT));
+  add("threadcount", p.GetProperty("threadcount", "1"));
+  add(SEED_PROPERTY, p.GetProperty(SEED_PROPERTY, SEED_DEFAULT));
   return sha256(str_to_hash);
 }
 
 ycsbc::Generator<uint64_t> *CoreWorkload::GetFieldLenGenerator(
-    const utils::Properties &p) {
+    const utils::Properties &p, uint64_t seed) {
   string field_len_dist = p.GetProperty(FIELD_LENGTH_DISTRIBUTION_PROPERTY,
                                         FIELD_LENGTH_DISTRIBUTION_DEFAULT);
   int field_len = std::stoi(p.GetProperty(FIELD_LENGTH_PROPERTY, FIELD_LENGTH_DEFAULT));
   if(field_len_dist == "constant") {
     return new ConstGenerator(field_len);
   } else if(field_len_dist == "uniform") {
-    return new UniformGenerator(1, field_len);
+    return new UniformGenerator(1, field_len, seed ^ kFieldLenUniformSalt);
   } else if(field_len_dist == "zipfian") {
     return new ZipfianGenerator(1, field_len);
   } else {

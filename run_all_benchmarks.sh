@@ -80,6 +80,8 @@ fi
 if [ -n "${THREADCOUNT:-}" ]; then
     COMMON_ARGS+=("-p" "threadcount=$THREADCOUNT")
 fi
+# Make the RNG stream (and pre-generated datasets) reproducible across runs.
+COMMON_ARGS+=("-p" "seed=${YCSB_SEED:-12345}")
 
 mkdir -p "$RESULTS_DIR"
 

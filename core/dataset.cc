@@ -179,7 +179,9 @@ void Dataset::DEBUG(int op_count) {
 
 std::string Dataset::GetFullPath(int op_count) const {
   std::stringstream ss;
-  ss << workload_props_hash_ << "-";
+  // `v2` invalidates caches produced before the workload-signature hash fix,
+  // so stale .dataset/ files are never silently reused.
+  ss << "v2-" << workload_props_hash_ << "-";
   if (is_loading_) {
     ss << "load-";
   } else {

@@ -182,6 +182,13 @@ class CoreWorkload {
   static const std::string BATCH_SIZE_DEFAULT;
 
   ///
+  /// Optional seed that makes the RNG stream (and pre-generated datasets)
+  /// reproducible across runs. Empty = non-deterministic default.
+  ///
+  static const std::string SEED_PROPERTY;
+  static const std::string SEED_DEFAULT;
+
+  ///
   /// Initialize the scenario.
   /// Called once, in the main client thread, before any operations are started.
   ///
@@ -232,7 +239,8 @@ class CoreWorkload {
   int batch_size() const { return batch_size_; }
 
  protected:
-  static Generator<uint64_t> *GetFieldLenGenerator(const utils::Properties &p);
+  static Generator<uint64_t> *GetFieldLenGenerator(const utils::Properties &p,
+                                                   uint64_t seed);
   std::string GetPropertiesHash(const utils::Properties &p);
   std::string BuildKeyName(uint64_t key_num);
   void BuildValues(Fields &values);
@@ -264,6 +272,7 @@ class CoreWorkload {
   size_t record_count_;
   int zero_padding_;
   int batch_size_;
+  uint64_t seed_{0};
   std::string properties_hash_;
   
   // Pre-built field names to avoid string construction in hot path

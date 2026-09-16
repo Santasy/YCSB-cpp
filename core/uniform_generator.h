@@ -21,6 +21,14 @@ class UniformGenerator : public Generator<uint64_t> {
   // Both min and max are inclusive
   UniformGenerator(uint64_t min, uint64_t max) : dist_(min, max) { Next(); }
 
+  // Both min and max are inclusive. The engine is deterministically seeded,
+  // making the produced stream reproducible for a given seed.
+  UniformGenerator(uint64_t min, uint64_t max, uint64_t seed)
+      : dist_(min, max) {
+    generator_.seed(seed);
+    Next();
+  }
+
   uint64_t Next();
   uint64_t Last();
 
