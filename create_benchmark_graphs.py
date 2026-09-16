@@ -50,7 +50,7 @@ CONCURRENT_WORKLOAD_LABELS = {
     "Concurrent Write (8T)", "Concurrent Session (8T)"}
 
 DATABASE_ORDER = ["leaves", "lmdb", "leveldb", "rocksdb",
-                  "wiredtiger", "sqlite", "redis", "badger", "dragonfly"]
+                  "wiredtiger", "sqlite", "redis"]
 COLORS = {
     "leaves": "#15616d",
     "lmdb": "#2a9d8f",
@@ -59,8 +59,6 @@ COLORS = {
     "wiredtiger": "#e76f51",
     "sqlite": "#5c7cfa",
     "redis": "#8d99ae",
-    "badger": "#9b59b6",
-    "dragonfly": "#e74c3c",
 }
 
 # Reference databases for normalization, in order of preference

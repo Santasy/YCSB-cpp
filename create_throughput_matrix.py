@@ -34,8 +34,6 @@ DATABASES = [
     "leaves",
     "sqlite",
     "redis",
-    "badger",
-    "dragonfly",
 ]
 
 SCENARIOS = [

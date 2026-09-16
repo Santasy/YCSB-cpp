@@ -61,9 +61,16 @@ ifeq ($(BIND_SQLITE), 1)
 	SOURCES += $(wildcard adapters/sqlite/*.cc)
 endif
 
-CXXFLAGS += -std=c++17 -Wall -pthread $(EXTRA_CXXFLAGS) -I./
+CXXFLAGS += -std=c++20 -Wall -pthread $(EXTRA_CXXFLAGS) -I./
 LDFLAGS += $(EXTRA_LDFLAGS) -lpthread
+SOURCES += $(wildcard adapters/null/*.cc)
 SOURCES += $(wildcard core/*.cc)
+
+# sha256 (utils) is compiled from a dedicated .cpp, not .cc, so it must not
+# flow through the .cc->.d dependency globbing above. Track its .o directly.
+SHA256_SRC = utils/sha256.cpp
+SHA256_OBJ = $(SHA256_SRC:.cpp=.o)
+OBJECTS += $(SHA256_OBJ)
 OBJECTS += $(SOURCES:.cc=.o)
 DEPS += $(SOURCES:.cc=.d)
 EXEC = ycsb

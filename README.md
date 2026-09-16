@@ -27,7 +27,7 @@ Major refactors were applied to the benchmark framework to address these issues,
 ### Database bindings and adapter layout
 
 * Legacy shared adapter code under `db/` was removed (for example `db/db_factory.*`, `db/redis_db.*`)
-* Binding implementations are now organized under `adapters/` with per-engine directories (`adapters/rocksdb/`, `adapters/leveldb/`, `adapters/lmdb/`, `adapters/wiredtiger/`, `adapters/sqlite/`, `adapters/redis/`, `adapters/leaves/`, plus additional integration directories such as `adapters/aerospike/`, `adapters/badger/`, `adapters/dragonfly/`, and `adapters/null/`)
+* Binding implementations are now organized under `adapters/` with per-engine directories (`adapters/rocksdb/`, `adapters/leveldb/`, `adapters/lmdb/`, `adapters/wiredtiger/`, `adapters/sqlite/`, `adapters/redis/`, `adapters/leaves/`), plus additional integration directories such as `adapters/aerospike/` and `adapters/null/`)
 * Redis binding was reworked (`adapters/redis/redis_db.{h,cc}`), and the vendored `redis/hiredis/` subtree was removed (38 files)
 * RocksDB support was expanded with a full adapter/options path (`adapters/rocksdb/rocksdb_db.{h,cc}`, `adapters/rocksdb/options.ini`)
 * SQLite and WiredTiger bindings include dedicated adapter and configuration files (`adapters/sqlite/sqlite_db.{h,cc}`, `adapters/wiredtiger/wiredtiger_db.{h,cc}`)
@@ -38,7 +38,6 @@ Major refactors were applied to the benchmark framework to address these issues,
 * Legacy workload names were normalized by renaming `workloads/workload[a-f].spec` to `workloads/workload[a-f]`
 * End-to-end benchmark orchestration and analysis scripts were added:
     * `run_all_benchmarks.sh`
-    * `run_deterministic_benchmark.sh`
     * `run_leaves_benchmark.sh`
     * `create_throughput_matrix.py`
     * `create_benchmark_graphs.py`

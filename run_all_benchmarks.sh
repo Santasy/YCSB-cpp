@@ -30,7 +30,7 @@ export YCSB_SEED=12345
 # Swap is prohibited by setting MemorySwapMax equal to MemoryMax.
 YCSB_MEMORY_LIMIT="${YCSB_MEMORY_LIMIT:-20G}"
 
-DATABASES=("rocksdb" "leveldb" "lmdb" "wiredtiger" "leaves" "sqlite" "redis" "badger")
+DATABASES=("rocksdb" "leveldb" "lmdb" "wiredtiger" "leaves" "sqlite" "redis")
 if [ -n "${BENCHMARK_DATABASES:-}" ]; then
     read -r -a DATABASES <<< "$BENCHMARK_DATABASES"
 fi
@@ -161,7 +161,7 @@ supports_scenario() {
 
     case "$scenario" in
         acid_txn|acid_aci|acid_batch_rmw)
-            [ "$db" = "wiredtiger" ] || [ "$db" = "lmdb" ] || [ "$db" = "leaves" ] || [ "$db" = "sqlite" ] || [ "$db" = "badger" ]
+            [ "$db" = "wiredtiger" ] || [ "$db" = "lmdb" ] || [ "$db" = "leaves" ] || [ "$db" = "sqlite" ]
             return
             ;;
         concurrent_write|concurrent_session)
@@ -201,9 +201,6 @@ db_mode_args() {
                 ;;
             sqlite)
                 echo "-p sqlite.journal_mode=WAL -p sqlite.synchronous=FULL"
-                ;;
-            badger)
-                echo "-p badger.sync_writes=true"
                 ;;
             *)
                 echo ""
@@ -254,21 +251,16 @@ scenario_db_args() {
         fl_args="-p fieldlength=${fieldlength} -p fieldcount=1"
     fi
 
-    local dw_args=""
-    if [[ "$scenario" == *_dw ]] && [ "$phase" = "run" ]; then
-        dw_args="-p dedicated_writer=true"
-    fi
-
     local bs_args=""
     if [[ "$scenario" != concurrent_* ]]; then
         bs_args="-p batch_size=${batch_size}"
     fi
     case "$db" in
-        redis|dragonfly)
+        redis)
             if [ "$phase" = "load" ]; then
                 echo "${bs_args} -p redis.destroy=true"
             else
-                echo "${bs_args} -p redis.destroy=false ${dw_args}"
+                echo "${bs_args} -p redis.destroy=false"
             fi
             ;;
         *)
@@ -299,9 +291,6 @@ clean_db_path() {
             ;;
         sqlite)
             rm -f /tmp/ycsb-sqlite.db /tmp/ycsb-sqlite.db-wal /tmp/ycsb-sqlite.db-shm
-            ;;
-        badger)
-            rm -rf /tmp/ycsb-badger
             ;;
         *)
             ;;
@@ -335,9 +324,6 @@ append_db_size() {
             ;;
         sqlite)
             db_path="/tmp/ycsb-sqlite.db"
-            ;;
-        badger)
-            db_path="/tmp/ycsb-badger"
             ;;
     esac
 
