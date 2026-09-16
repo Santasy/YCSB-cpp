@@ -38,27 +38,27 @@ endif
 
 ifeq ($(BIND_WIREDTIGER), 1)
 	LDFLAGS += -lwiredtiger
-	SOURCES += $(wildcard adapters/data-structures/wiredtiger/*.cc)
+	SOURCES += $(wildcard adapters/data-bases/wiredtiger/*.cc)
 endif
 
 ifeq ($(BIND_LEVELDB), 1)
 	LDFLAGS += -lleveldb
-	SOURCES += $(wildcard adapters/data-structures/leveldb/*.cc)
+	SOURCES += $(wildcard adapters/data-bases/leveldb/*.cc)
 endif
 
 ifeq ($(BIND_ROCKSDB), 1)
 	LDFLAGS += -lrocksdb
-	SOURCES += $(wildcard adapters/data-structures/rocksdb/*.cc)
+	SOURCES += $(wildcard adapters/data-bases/rocksdb/*.cc)
 endif
 
 ifeq ($(BIND_LMDB), 1)
 	LDFLAGS += -llmdb
-	SOURCES += $(wildcard adapters/data-structures/lmdb/*.cc)
+	SOURCES += $(wildcard adapters/data-bases/lmdb/*.cc)
 endif
 
 ifeq ($(BIND_SQLITE), 1)
 	LDFLAGS += -lsqlite3
-	SOURCES += $(wildcard adapters/data-structures/sqlite/*.cc)
+	SOURCES += $(wildcard adapters/data-bases/sqlite/*.cc)
 endif
 
 CXXFLAGS += -std=c++20 -Wall -pthread $(EXTRA_CXXFLAGS) -I./
