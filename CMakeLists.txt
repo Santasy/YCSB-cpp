@@ -87,7 +87,7 @@ if (BIND_ROCKSDB)
     message(STATUS "BIND_ROCKSDB - ON")
     set(WITH_ZLIB ON)
     set(WITH_BZ2 ON)
-    file(GLOB_RECURSE YCSB_ROCKSDB_SRC "adapters/rocksdb/*.cc")
+    file(GLOB_RECURSE YCSB_ROCKSDB_SRC "adapters/data-bases/rocksdb/*.cc")
     target_sources(ycsb_db_adaptors PRIVATE ${YCSB_ROCKSDB_SRC})
     if(NOT MSVC)
         set_source_files_properties(${YCSB_ROCKSDB_SRC}
@@ -118,7 +118,7 @@ endif()
 
 if (BIND_LMDB)
     message(STATUS "BIND_LMDB - ON")
-    file(GLOB_RECURSE YCSB_LMDB_SRC "adapters/lmdb/*.cc")
+    file(GLOB_RECURSE YCSB_LMDB_SRC "adapters/data-bases/lmdb/*.cc")
     target_sources(ycsb_db_adaptors PRIVATE ${YCSB_LMDB_SRC})
     if(NOT MSVC)
         set_source_files_properties(${YCSB_LMDB_SRC}
@@ -142,7 +142,7 @@ endif()
 
 if (BIND_LEVELDB)
     message(STATUS "BIND_LEVELDB - ON")
-    file(GLOB_RECURSE YCSB_LEVELDB_SRC "adapters/leveldb/*.cc")
+    file(GLOB_RECURSE YCSB_LEVELDB_SRC "adapters/data-bases/leveldb/*.cc")
     target_sources(ycsb_db_adaptors PRIVATE ${YCSB_LEVELDB_SRC})
     if(NOT MSVC)
         set_source_files_properties(${YCSB_LEVELDB_SRC}
@@ -166,7 +166,7 @@ endif()
 
 if (BIND_WIREDTIGER)
     message(STATUS "BIND_WIREDTIGER - ON")
-    file(GLOB_RECURSE YCSB_WT_SRC "adapters/wiredtiger/*.cc")
+    file(GLOB_RECURSE YCSB_WT_SRC "adapters/data-bases/wiredtiger/*.cc")
     target_sources(ycsb_db_adaptors PRIVATE ${YCSB_WT_SRC})
     if(NOT MSVC)
         set_source_files_properties(${YCSB_WT_SRC}
@@ -184,7 +184,7 @@ endif()
 
 if (BIND_LEAVES)
     message(STATUS "BIND_LEAVES - ON")
-    file(GLOB_RECURSE YCSB_LEAVES_SRC "adapters/leaves/*.cc")
+    file(GLOB_RECURSE YCSB_LEAVES_SRC "adapters/data-bases/leaves/*.cc")
     target_sources(ycsb_db_adaptors PRIVATE ${YCSB_LEAVES_SRC})
 
     # Use only generic package discovery (find_package CONFIG). No hardcoded
@@ -225,7 +225,7 @@ endif()
 
 if (BIND_SQLITE)
     message(STATUS "BIND_SQLITE - ON")
-    file(GLOB_RECURSE YCSB_SQLITE_SRC "adapters/sqlite/*.cc")
+    file(GLOB_RECURSE YCSB_SQLITE_SRC "adapters/data-bases/sqlite/*.cc")
     target_sources(ycsb_db_adaptors PRIVATE ${YCSB_SQLITE_SRC})
     if(NOT MSVC)
         set_source_files_properties(${YCSB_SQLITE_SRC}
@@ -250,7 +250,7 @@ endif()
 
 if (BIND_REDIS)
     message(STATUS "BIND_REDIS - ON")
-    file(GLOB_RECURSE YCSB_REDIS_SRC "adapters/redis/*.cc")
+    file(GLOB_RECURSE YCSB_REDIS_SRC "adapters/data-bases/redis/*.cc")
     target_sources(ycsb_db_adaptors PRIVATE ${YCSB_REDIS_SRC})
 
     find_library(HIREDIS_LIB hiredis REQUIRED)
@@ -264,7 +264,7 @@ endif()
 
 if (BIND_AEROSPIKE)
     message(STATUS "BIND_AEROSPIKE - ON")
-    file(GLOB_RECURSE YCSB_AEROSPIKE_SRC "adapters/aerospike/*.cc")
+    file(GLOB_RECURSE YCSB_AEROSPIKE_SRC "adapters/data-bases/aerospike/*.cc")
     target_sources(ycsb_db_adaptors PRIVATE ${YCSB_AEROSPIKE_SRC})
 
     find_library(AEROSPIKE_LIB aerospike REQUIRED)
