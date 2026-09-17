@@ -62,9 +62,11 @@ ifeq ($(BIND_SQLITE), 1)
 endif
 
 CXXFLAGS += -std=c++20 -Wall -pthread $(EXTRA_CXXFLAGS) -I./
+CXXFLAGS += -Iadapters/data-structures/cpp-btree/module-cpp-btree/include
 LDFLAGS += $(EXTRA_LDFLAGS) -lpthread
 SOURCES += $(wildcard adapters/null/*.cc)
 SOURCES += $(wildcard adapters/data-structures/stdlib/*.cc)
+SOURCES += $(wildcard adapters/data-structures/cpp-btree/*.cc)
 SOURCES += $(wildcard core/*.cc)
 
 # sha256 (utils) is compiled from a dedicated .cpp, not .cc, so it must not
