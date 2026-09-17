@@ -12,7 +12,7 @@
 #include <unordered_map>
 
 #include "core/dataset.h"
-#include "core/db.h"
+#include "core/db_database.h"
 
 #include <sqlite3.h>
 

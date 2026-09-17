@@ -1,7 +1,7 @@
 #ifndef YCSB_C_AEROSPIKE_DB_H_
 #define YCSB_C_AEROSPIKE_DB_H_
 
-#include "core/db.h"
+#include "core/db_database.h"
 #include "utils/properties.h"
 #include "utils/fields.h"
 #include <string>

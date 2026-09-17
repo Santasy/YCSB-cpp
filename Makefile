@@ -64,6 +64,7 @@ endif
 CXXFLAGS += -std=c++20 -Wall -pthread $(EXTRA_CXXFLAGS) -I./
 LDFLAGS += $(EXTRA_LDFLAGS) -lpthread
 SOURCES += $(wildcard adapters/null/*.cc)
+SOURCES += $(wildcard adapters/data-structures/stdlib/*.cc)
 SOURCES += $(wildcard core/*.cc)
 
 # sha256 (utils) is compiled from a dedicated .cpp, not .cc, so it must not

@@ -9,7 +9,7 @@
 #define YCSB_C_REDIS_DB_H_
 
 #include "core/dataset.h"
-#include "core/db.h"
+#include "core/db_database.h"
 #include <string>
 #include <hiredis/hiredis.h>
 

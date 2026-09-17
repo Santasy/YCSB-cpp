@@ -1,7 +1,7 @@
 # Copyright 2023 Chengye YU <yuchengye2013 AT outlook.com>.
 # SPDX-License-Identifier: Apache-2.0
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12)
 project(ycsb-cpp LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 
@@ -45,7 +45,7 @@ option(BIND_REDIS "build with redis" OFF)
 option(BIND_AEROSPIKE "build with aerospike" OFF)
 option(BIND_ROCKSDB "build with rocksdb" OFF)
 
-option(WITH_ZLIB "linking YCSB with zlib; needed by HdrHISTOGRAM, DO NOT TURN OFF" ON)
+option(WITH_ZLIB "link with zlib (only used by HdrHistogram's optional log compression); safe to leave OFF" ON)
 option(WITH_LZ4 "linking YCSB with lz4" OFF)
 option(WITH_SNAPPY "linking YCSB with snappy" OFF)
 option(WITH_ZSTD "linking YCSB with zstd" OFF)
@@ -53,15 +53,18 @@ option(WITH_BZ2 "linking YCSB with bzip2" OFF)
 
 option(YCSB_BUILD_TESTS "build the optional test executables" OFF)
 
-file(GLOB_RECURSE YCSB_CORE_SRC "core/*.cc")
-file(GLOB_RECURSE YCSB_NULL_SRC "adapters/null/*.cc")
+file(GLOB_RECURSE YCSB_CORE_SRC CONFIGURE_DEPENDS "core/*.cc")
+file(GLOB_RECURSE YCSB_NULL_SRC CONFIGURE_DEPENDS "adapters/null/*.cc")
 
 include(FindThreads)
 
 # --- Data-structure bindings -------------------------------------------------
-# ycsb_data_structs: placeholder OBJECT target for future data-struct adapters
-# (e.g. std::map / std::set). Currently empty on purpose.
-add_library(ycsb_data_structs OBJECT data_structs/placeholder.cc)
+# ycsb_data_structs: OBJECT target holding all data-structure adapter sources
+# (e.g. std::map / std::set). They have no external deps, so they are always
+# compiled (the "map" / future "set" backends are in-memory only).
+file(GLOB_RECURSE YCSB_DATA_STRUCT_SRC CONFIGURE_DEPENDS "adapters/data-structures/stdlib/*.cc")
+add_library(ycsb_data_structs OBJECT ${YCSB_DATA_STRUCT_SRC})
+target_include_directories(ycsb_data_structs PUBLIC ${PROJECT_SOURCE_DIR})
 
 # --- Database adaptors --------------------------------------------------------
 # ycsb_db_adaptors: OBJECT target holding all database adapter sources. OBJECT
@@ -78,7 +81,7 @@ target_sources(ycsb PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/utils/sha256.cpp)
 target_link_libraries(ycsb PRIVATE ycsb_db_adaptors ycsb_data_structs)
 
 if(NOT MSVC)
-    set_source_files_properties(${YCSB_CORE_SRC} ${YCSB_NULL_SRC}
+    set_source_files_properties(${YCSB_CORE_SRC} ${YCSB_NULL_SRC} ${YCSB_DATA_STRUCT_SRC}
         PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter")
 endif()
 target_include_directories(ycsb_db_adaptors PUBLIC ${PROJECT_SOURCE_DIR})
@@ -289,14 +292,11 @@ if(WITH_ZLIB)
         if(ZLIB_LIB)
             target_link_libraries(ycsb_db_adaptors PUBLIC ${ZLIB_LIB})
             message(STATUS "Found zlib library via find_library")
-        elseif(BIND_ROCKSDB)
-            message(FATAL_ERROR
-                "WITH_ZLIB requested and the RocksDB binding is enabled, "
-                "but the zlib library was not found")
         else()
             message(WARNING
                 "WITH_ZLIB requested but zlib not found; "
-                "no enabled binding requires it, continuing without zlib")
+                "only HdrHistogram's optional log compression (unused by ycsb) "
+                "and the RocksDB zlib codec need it, continuing without zlib")
         endif()
     endif()
 else()

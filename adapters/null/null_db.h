@@ -8,7 +8,7 @@
 #ifndef YCSB_C_NULL_DB_H_
 #define YCSB_C_NULL_DB_H_
 
-#include "core/db.h"
+#include "core/db_database.h"
 
 namespace ycsbc {
 

@@ -16,7 +16,7 @@
 #include <utility>
 
 #include "core/dataset.h"
-#include "core/db.h"
+#include "core/db_database.h"
 #include "utils/properties.h"
 
 // Include Leaves database headers

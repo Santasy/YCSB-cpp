@@ -16,7 +16,7 @@
 #include <endian.h>
 
 #include "core/dataset.h"
-#include "core/db.h"
+#include "core/db_database.h"
 #include "utils/properties.h"
 #include "utils/utils.h"
 

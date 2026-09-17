@@ -17,7 +17,7 @@
 #include <string>
 
 #include "core/dataset.h"
-#include "core/db.h"
+#include "core/db_database.h"
 #include "utils/utils.h"
 
 namespace ycsbc {

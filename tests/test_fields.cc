@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cassert>
+#include "core/db_interfaces.h"
 #include "utils/fields.h"
 
 using namespace ycsbc;
@@ -74,7 +75,7 @@ void test_update() {
 void test_vector_conversion() {
   std::cout << "Testing vector conversion..." << std::endl;
   
-  std::vector<DB::Field> vec = {
+  std::vector<DBInterface::Field> vec = {
     {"name1", "value1"},
     {"name2", "value2"}
   };
@@ -84,7 +85,7 @@ void test_vector_conversion() {
   
   assert(fields.size() == 2);
   
-  std::vector<DB::Field> result;
+  std::vector<DBInterface::Field> result;
   fields.to_vector(result);
   
   assert(result.size() == 2);
