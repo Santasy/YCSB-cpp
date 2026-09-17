@@ -30,11 +30,69 @@
                 "BIND_WIREDTIGER": "ON",
                 "BIND_LEAVES": "ON",
                 "BIND_SQLITE": "ON",
+                "BIND_REDIS": "ON",
+                "BIND_AEROSPIKE": "ON",
                 "WITH_ZLIB": "ON",
                 "WITH_LZ4": "ON",
                 "WITH_SNAPPY": "ON",
                 "WITH_ZSTD": "ON",
                 "WITH_BZ2": "ON"
+
+            }
+        },
+        {
+            "name": "debug-test",
+            "displayName": "Debug - Test",
+            "description": "Debug build for Test, with all database bindings disabled (core + null adapter only).",
+            "binaryDir": "${sourceDir}/build-test",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "YCSB_BUILD_TESTS": "ON",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "debug-none",
+            "displayName": "Debug - No Databases",
+            "description": "Debug build with all database bindings disabled (core + null adapter only)",
+            "binaryDir": "${sourceDir}/build-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "WITH_ZLIB": "ON"
+            }
+        },
+        {
+            "name": "debug-db",
+            "displayName": "Debug - Only data-bases",
+            "description": "Debug build with all database bindings enabled",
+            "binaryDir": "${sourceDir}/build-dbg-db",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "BIND_SQLITE": "ON",
+                "BIND_ROCKSDB": "ON",
+                "BIND_LMDB": "ON",
+                "BIND_LEVELDB": "ON",
+                "BIND_WIREDTIGER": "ON",
+                "BIND_LEAVES": "ON",
+                "WITH_ZLIB": "ON",
+                "WITH_LZ4": "ON",
+                "WITH_SNAPPY": "ON",
+                "WITH_ZSTD": "ON",
+                "WITH_BZ2": "ON"
+            }
+        },
+        {
+            "name": "debug-ds",
+            "displayName": "Debug - Only data-strucs",
+            "description": "Debug build with core + null + data-structure adapters (btree opt-in via -DBIND_BTREE=ON)",
+            "binaryDir": "${sourceDir}/build-dbg-ds",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "WITH_ZLIB": "ON",
+                "BIND_BTREE": "ON"
             }
         },
         {
@@ -60,81 +118,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BIND_ROCKSDB": "OFF",
-                "BIND_LMDB": "OFF",
-                "BIND_LEVELDB": "OFF",
-                "BIND_WIREDTIGER": "OFF",
                 "BIND_LEAVES": "ON"
-            }
-        },
-        {
-            "name": "debug-test",
-            "displayName": "Debug - Test",
-            "description": "Debug build for Test, with all database bindings disabled (core + null adapter only).",
-            "binaryDir": "${sourceDir}/build-test",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "YCSB_BUILD_TESTS": "ON",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BIND_SQLITE": "OFF",
-                "BIND_ROCKSDB": "OFF",
-                "BIND_LMDB": "OFF",
-                "BIND_LEVELDB": "OFF",
-                "BIND_WIREDTIGER": "OFF",
-                "BIND_LEAVES": "OFF",
-                "BIND_REDIS": "OFF",
-                "BIND_AEROSPIKE": "OFF",
-                "BIND_BADGER": "OFF",
-                "WITH_ZLIB": "OFF",
-                "WITH_LZ4": "OFF",
-                "WITH_SNAPPY": "OFF",
-                "WITH_ZSTD": "OFF",
-                "WITH_BZ2": "OFF"
-            }
-        },
-        {
-            "name": "debug-none",
-            "displayName": "Debug - No Databases",
-            "description": "Debug build with all database bindings disabled (core + null adapter only)",
-            "binaryDir": "${sourceDir}/build-debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BIND_SQLITE": "OFF",
-                "BIND_ROCKSDB": "OFF",
-                "BIND_LMDB": "OFF",
-                "BIND_LEVELDB": "OFF",
-                "BIND_WIREDTIGER": "OFF",
-                "BIND_LEAVES": "OFF",
-                "BIND_REDIS": "OFF",
-                "BIND_AEROSPIKE": "OFF",
-                "BIND_BADGER": "OFF",
-                "WITH_ZLIB": "ON",
-                "WITH_LZ4": "OFF",
-                "WITH_SNAPPY": "OFF",
-                "WITH_ZSTD": "OFF",
-                "WITH_BZ2": "OFF"
-            }
-        },
-        {
-            "name": "debug-all",
-            "displayName": "Debug - All Databases",
-            "description": "Debug build with all database bindings enabled",
-            "binaryDir": "${sourceDir}/build-debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BIND_SQLITE": "ON",
-                "BIND_ROCKSDB": "ON",
-                "BIND_LMDB": "ON",
-                "BIND_LEVELDB": "ON",
-                "BIND_WIREDTIGER": "ON",
-                "BIND_LEAVES": "ON",
-                "WITH_ZLIB": "ON",
-                "WITH_LZ4": "ON",
-                "WITH_SNAPPY": "ON",
-                "WITH_ZSTD": "ON",
-                "WITH_BZ2": "ON"
             }
         }
     ],
@@ -144,6 +128,30 @@
             "configurePreset": "all-bind-on",
             "displayName": "Build All Databases",
             "description": "Build with all databases enabled"
+        },
+        {
+            "name": "debug-none",
+            "configurePreset": "debug-none",
+            "displayName": "Debug Build - No Databases",
+            "description": "Debug build with all database bindings disabled (core + null adapter only)"
+        },
+        {
+            "name": "debug-ds",
+            "configurePreset": "debug-ds",
+            "displayName": "Debug Build - Only data-structs",
+            "description": "Debug build with core + null + data-structure adapters"
+        },
+        {
+            "name": "debug-db",
+            "configurePreset": "debug-db",
+            "displayName": "Debug Build - All DBs",
+            "description": "Debug build with all databases"
+        },
+        {
+            "name": "debug-test",
+            "configurePreset": "debug-test",
+            "displayName": "Debug Build - Test without Databases",
+            "description": "Debug build for Tests, with all database bindings disabled (core + null adapter only)"
         },
         {
             "name": "rocksdb-only",
@@ -156,24 +164,6 @@
             "configurePreset": "leaves-only",
             "displayName": "Build Leaves Only",
             "description": "Build with only Leaves"
-        },
-        {
-            "name": "debug-test",
-            "configurePreset": "debug-test",
-            "displayName": "Debug Build - Test without Databases",
-            "description": "Debug build for Tests, with all database bindings disabled (core + null adapter only)"
-        },
-        {
-            "name": "debug-none",
-            "configurePreset": "debug-none",
-            "displayName": "Debug Build - No Databases",
-            "description": "Debug build with all database bindings disabled (core + null adapter only)"
-        },
-        {
-            "name": "debug-all",
-            "configurePreset": "debug-all",
-            "displayName": "Debug Build - All",
-            "description": "Debug build with all databases"
         }
     ],
     "testPresets": [

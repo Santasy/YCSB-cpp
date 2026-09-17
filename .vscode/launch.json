@@ -5,10 +5,48 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug YCSB - Legacy Workload A (null, Load)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/${input:buildFolder}/ycsb",
+            "args": [
+                "-load",
+                "-db",
+                "map",
+                "-P",
+                "workloads/workloada",
+                "-s",
+                "-p",
+                "resultformat=csv",
+                "-p",
+                "output.file=${workspaceFolder}/storage/out.log",
+            ],
+            "cwd": "${workspaceFolder}",
+        },
+        {
+            "name": "Debug YCSB - Legacy Workload A (null, Run)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/${input:buildFolder}/ycsb",
+            "args": [
+                "-run",
+                "-db",
+                "map",
+                "-P",
+                "workloads/workloada",
+                "-s",
+                "-p",
+                "resultformat=csv",
+                "-p",
+                "output.file=${workspaceFolder}/storage/out.log",
+            ],
+            "cwd": "${workspaceFolder}",
+        },
+        {
             "name": "Debug YCSB - LMDB Workload KV Session",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build-debug/ycsb",
+            "program": "${workspaceFolder}/${input:buildFolder}/ycsb",
             "args": [
                 "-run",
                 "-db",
@@ -41,7 +79,7 @@
             "name": "Debug YCSB - Leaves -acid",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build-debug/ycsb",
+            "program": "${workspaceFolder}/${input:buildFolder}/ycsb",
             "args": [
                 "-run",
                 "-db",
@@ -83,7 +121,7 @@
             "name": "Debug YCSB - Catch Exceptions (Leaves Workload A RUN)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build-debug/ycsb",
+            "program": "${workspaceFolder}/${input:buildFolder}/ycsb",
             "args": [
                 "-load",
                 "-db",
@@ -124,102 +162,10 @@
             "preLaunchTask": ""
         },
         {
-            "name": "Debug YCSB - Leaves FillRandom Like DbBench",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build-debug/ycsb",
-            "args": [
-                "-run",
-                "-db",
-                "leaves",
-                "-P",
-                "adapters/leaves/leaves.properties",
-                "-P",
-                "workloads/workload_kv_fillrandom_like_dbbench.properties",
-                "-s"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "DEBUGINFOD_URLS",
-                    "value": ""
-                }
-            ],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Disable debuginfod symbol server",
-                    "text": "-gdb-set debuginfod enabled off",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Catch C++ exceptions",
-                    "text": "catch throw",
-                    "ignoreFailures": false
-                },
-                {
-                    "description": "Break on std::bad_weak_ptr",
-                    "text": "catch throw std::bad_weak_ptr",
-                    "ignoreFailures": false
-                }
-            ],
-            "preLaunchTask": "Build YCSB Debug"
-        },
-        {
-            "name": "Debug YCSB - Legacy Workload A (null, Load) [cppdbg]",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build-debug/ycsb",
-            "args": [
-                "-load",
-                "-db",
-                "map",
-                "-P",
-                "workloads/workloada",
-                "-s",
-                "-p",
-                "resultformat=csv",
-                "-p",
-                "output.file=${workspaceFolder}/storage/out.log",
-            ],
-            "cwd": "${workspaceFolder}",
-        },
-        {
-            "name": "Debug YCSB - Legacy Workload A (null, Run) [cppdbg]",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build-debug/ycsb",
-            "args": [
-                "-run",
-                "-db",
-                "map",
-                "-P",
-                "workloads/workloada",
-                "-s",
-                "-p",
-                "resultformat=csv",
-                "-p",
-                "output.file=${workspaceFolder}/storage/out.log",
-            ],
-            "cwd": "${workspaceFolder}",
-        },
-        {
             "name": "Debug YCSB - Release Build (Leaves Load)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/ycsb",
+            "program": "${workspaceFolder}/${input:buildFolder}/ycsb",
             "args": [
                 "-db",
                 "leaves",
@@ -257,7 +203,7 @@
             "name": "Debug YCSB - Release Build (Leaves Run)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/ycsb",
+            "program": "${workspaceFolder}/${input:buildFolder}/ycsb",
             "args": [
                 "-db",
                 "leaves",
@@ -295,9 +241,24 @@
             "name": "Debug Test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build-test/ycsb_tests",
+            "program": "${workspaceFolder}/${input:buildFolder}/ycsb_tests",
             "args": [],
             "cwd": "${workspaceFolder}",
         },
+    ],
+    "inputs": [
+        {
+            "id": "buildFolder",
+            "type": "pickString",
+            "description": "Build folder containing the binary to debug (release = build, debug+DBs = build-dbg-db, debug no-DB = build-debug, tests = build-test, data-structs debug = build-dbg-ds)",
+            "options": [
+                "build",
+                "build-test",
+                "build-dbg-db",
+                "build-dbg-ds",
+                "build-debug",
+            ],
+            "default": "build-dbg-ds"
+        }
     ]
 }

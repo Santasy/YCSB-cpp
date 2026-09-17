@@ -38,7 +38,6 @@ Major refactors were applied to the benchmark framework to address these issues,
 * Legacy workload names were normalized by renaming `workloads/workload[a-f].spec` to `workloads/workload[a-f]`
 * End-to-end benchmark orchestration and analysis scripts were added:
     * `run_all_benchmarks.sh`
-    * `run_leaves_benchmark.sh`
     * `create_throughput_matrix.py`
     * `create_benchmark_graphs.py`
     * `merge_benchmark_csvs.py`

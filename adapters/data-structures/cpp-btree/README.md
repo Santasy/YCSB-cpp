@@ -17,7 +17,13 @@ data-structure adapters.
 
 ## Usage
 
+The adapter is opt-in: configure with `-DBIND_BTREE=ON` (default OFF) so the
+`module-cpp-btree` include path and the `cppbtree_db.cc` source are added to
+`ycsb_data_structs`.
+
 ```bash
+cmake --preset all-bind-on -DBIND_BTREE=ON && cmake --build build
+
 # Single combined load + run in one process (no persistence between processes)
 ./build/ycsb -load -run -db btree -threads 1 \
   -P adapters/data-structures/cpp-btree/cppbtree_db.properties \
@@ -43,7 +49,8 @@ per-structure columns to the series output / `schema.csv`:
   `map.clear`).
 - Not thread-safe: the runtime clamps `threadcount` to 1 for data-structure
   adapters.
-- Requires the `module-cpp-btree` submodule (`git submodule update --init`).
+- Requires `-DBIND_BTREE=ON` at configure time **and** the `module-cpp-btree`
+  submodule (`git submodule update --init`).
 
 ## Performance Results
 

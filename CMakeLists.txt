@@ -35,6 +35,7 @@ if(MSVC)
     endforeach()
 endif()
 
+### Data Bases ###
 option(BIND_ROCKSDB "build with rocksdb" OFF)
 option(BIND_LMDB "build with lmdb" OFF)
 option(BIND_LEVELDB "build with leveldb" OFF)
@@ -42,9 +43,7 @@ option(BIND_WIREDTIGER "build with wiredtiger" OFF)
 option(BIND_LEAVES "build with leaves" OFF)
 option(BIND_SQLITE "build with sqlite" OFF)
 option(BIND_REDIS "build with redis" OFF)
-
 option(BIND_AEROSPIKE "build with aerospike" OFF)
-option(BIND_ROCKSDB "build with rocksdb" OFF)
 
 option(WITH_ZLIB "link with zlib (only used by HdrHistogram's optional log compression); safe to leave OFF" ON)
 option(WITH_LZ4 "linking YCSB with lz4" OFF)
@@ -52,6 +51,10 @@ option(WITH_SNAPPY "linking YCSB with snappy" OFF)
 option(WITH_ZSTD "linking YCSB with zstd" OFF)
 option(WITH_BZ2 "linking YCSB with bzip2" OFF)
 
+### Data Structures ###
+option(BIND_BTREE "linking YCSB with cpp-btree" OFF)
+
+### Test ###
 option(YCSB_BUILD_TESTS "build the optional test executables" OFF)
 
 file(GLOB_RECURSE YCSB_CORE_SRC CONFIGURE_DEPENDS "core/*.cc")
@@ -59,49 +62,57 @@ file(GLOB_RECURSE YCSB_NULL_SRC CONFIGURE_DEPENDS "adapters/null/*.cc")
 
 include(FindThreads)
 
-# --- Data-structure bindings -------------------------------------------------
-# ycsb_data_structs: OBJECT target holding all data-structure adapter sources
-# (e.g. std::map / std::set / cpp-btree). They have no external deps, so they
-# are always compiled (the "map" / "btree" backends are in-memory only).
-# stdlib is globbed recursively; cpp-btree only at the top level so the
-# module subdir's own (test) sources are not pulled in.
-file(GLOB_RECURSE YCSB_DATA_STRUCT_SRC CONFIGURE_DEPENDS "adapters/data-structures/stdlib/*.cc")
-file(GLOB YCSB_BTREE_SRC CONFIGURE_DEPENDS "adapters/data-structures/cpp-btree/*.cc")
-add_library(ycsb_data_structs OBJECT ${YCSB_DATA_STRUCT_SRC} ${YCSB_BTREE_SRC})
-target_include_directories(ycsb_data_structs PUBLIC ${PROJECT_SOURCE_DIR})
-# cpp-btree is a header-only library under its submodule include root.
-target_include_directories(ycsb_data_structs PUBLIC
-    ${PROJECT_SOURCE_DIR}/adapters/data-structures/cpp-btree/module-cpp-btree/include)
-
-# --- Database adaptors --------------------------------------------------------
-# ycsb_db_adaptors: OBJECT target holding all database adapter sources. OBJECT
-# libraries keep the adapters' static self-registration intact and let the
-# PUBLIC usage requirements (includes, linked libs) propagate to ycsb.
-# ycsb_db_adaptors: OBJECT target holding database adapter sources. The null
-# binding (adapters/null -> NullDB, the "basic" DB) is always compiled: it has
-# no external deps and keeps ycsb runnable with -db basic. Every other adapter
-# adds itself below inside its own if(BIND_*) block, so builds stay compatible
-# with all DBs while never pulling in uninstalled headers.
-add_library(ycsb_db_adaptors OBJECT adapters/null/null_db.cc)
+# --- Core bindings -------------------------------------------------
 # ycsb_core: OBJECT target holding the core/*.cc sources. Compiled once and
 # linked into both ycsb and ycsb_tests so symbols whose key function lives in a
 # core TU (e.g. DBInterface's vtable/typeinfo in core/db_interfaces.cc) are
-# available to both executables. core/ycsbc.cc defines main() and is therefore
+# available to both executables.
+# core/ycsbc.cc defines main() and is therefore
 # kept out of the library and compiled only into the ycsb executable.
 set(YCSB_MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/core/ycsbc.cc)
 list(FILTER YCSB_CORE_SRC EXCLUDE REGEX "(^|/)ycsbc\\.cc$")
 add_library(ycsb_core OBJECT ${YCSB_CORE_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/utils/sha256.cpp)
 target_include_directories(ycsb_core PUBLIC ${PROJECT_SOURCE_DIR})
-add_executable(ycsb ${YCSB_MAIN_SRC})
-target_link_libraries(ycsb PRIVATE ycsb_core ycsb_db_adaptors ycsb_data_structs)
+
+# --- Data-structure bindings -------------------------------------------------
+# ycsb_data_structs: OBJECT target holding all data-structure adapter sources
+# (e.g. std::map / std::set). They have no external deps, so they are always
+# compiled (the "map" backend is in-memory only). stdlib is globbed
+# recursively; cpp-btree is opt-in via BIND_BTREE and globbed only at the top
+# level so the module subdir's own (test) sources are not pulled in.
+file(GLOB_RECURSE YCSB_STDMAP_SRC CONFIGURE_DEPENDS "adapters/data-structures/stdlib/*.cc")
+add_library(ycsb_data_structs OBJECT ${YCSB_STDMAP_SRC})
+target_include_directories(ycsb_data_structs PUBLIC ${PROJECT_SOURCE_DIR})
+
+if (BIND_BTREE)
+    message(STATUS "BIND_BTREE - ON")
+    # cpp-btree is a header-only library under its submodule include root.
+    target_include_directories(ycsb_data_structs PUBLIC
+        ${PROJECT_SOURCE_DIR}/adapters/data-structures/cpp-btree/module-cpp-btree/include)
+    file(GLOB YCSB_BTREE_SRC CONFIGURE_DEPENDS "adapters/data-structures/cpp-btree/*.cc")
+    target_sources(ycsb_data_structs PRIVATE ${YCSB_BTREE_SRC})
+    if(NOT MSVC)
+        # The (old, 2013-era) cpp-btree headers trigger -Wdeprecated-copy under
+        # C++20/-Wextra; keep the build output clean without -Werror.
+        set_source_files_properties(${YCSB_BTREE_SRC}
+            PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter;-Wno-deprecated-copy")
+    endif()
+endif()
+
+# --- Database adaptors --------------------------------------------------------
+# ycsb_db_adaptors: OBJECT target holding all database adapter sources. OBJECT
+# libraries keep the adapters' static self-registration intact and let the
+# PUBLIC usage requirements (includes, linked libs) propagate to ycsb.
+# The null binding (adapters/null -> NullDB, the "basic" DB) is always
+# compiled: it has no external deps and keeps ycsb runnable with -db basic.
+# Every other adapter adds itself below inside its own if(BIND_*) block, so
+# builds stay compatible with all DBs while never pulling in uninstalled
+# headers.
+add_library(ycsb_db_adaptors OBJECT adapters/null/null_db.cc)
 
 if(NOT MSVC)
-    set_source_files_properties(${YCSB_CORE_SRC} ${YCSB_MAIN_SRC} ${YCSB_NULL_SRC} ${YCSB_DATA_STRUCT_SRC} ${YCSB_BTREE_SRC}
+    set_source_files_properties(${YCSB_CORE_SRC} ${YCSB_MAIN_SRC} ${YCSB_NULL_SRC} ${YCSB_STDMAP_SRC}
         PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter")
-    # The (old, 2013-era) cpp-btree headers trigger -Wdeprecated-copy under
-    # C++20/-Wextra; keep the build output clean without -Werror.
-    set_source_files_properties(${YCSB_BTREE_SRC}
-        PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter;-Wno-deprecated-copy")
 endif()
 target_include_directories(ycsb_db_adaptors PUBLIC ${PROJECT_SOURCE_DIR})
 
@@ -381,6 +392,13 @@ endif()
 else()
     message(STATUS "WITH_BZ2 - OFF")
 endif()
+
+
+
+### Grouping Executables ###
+
+add_executable(ycsb ${YCSB_MAIN_SRC})
+target_link_libraries(ycsb PRIVATE ycsb_core ycsb_db_adaptors ycsb_data_structs)
 
 if(YCSB_BUILD_TESTS)
     add_executable(ycsb_tests tests/test_fields.cc)
