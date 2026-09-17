@@ -290,6 +290,14 @@
                     "ignoreFailures": false
                 }
             ]
-        }
+        },
+        {
+            "name": "Debug Test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-test/ycsb_tests",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+        },
     ]
 }

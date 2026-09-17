@@ -20,10 +20,10 @@
 #include <thread>
 #include <vector>
 
-#include "client.h"
-#include "core/dataset.h"
-#include "core/output.h"
+#include "dataset.h"
+#include "output.h"
 #include "core_workload.h"
+#include "client.h"
 #include "db_factory.h"
 #include "measurements.h"
 #include "utils/countdown_latch.h"
@@ -35,63 +35,6 @@ void UsageMessage(const char* command);
 bool StrStartWith(const char* str, const char* pre);
 void ParseCommandLine(int argc, const char* argv[],
                       ycsbc::utils::Properties& props);
-
-void StatusThread(ycsbc::Measurements* measurements,
-                  ycsbc::utils::CountDownLatch* latch, int interval,
-                  std::ostream* out) {
-  using namespace std::chrono;
-  time_point<system_clock> start = system_clock::now();
-  bool done = false;
-  while (1) {
-    time_point<system_clock> now = system_clock::now();
-    std::time_t now_c = system_clock::to_time_t(now);
-    duration<double> elapsed_time = now - start;
-
-    *out << std::put_time(std::localtime(&now_c), "%F %T") << ' '
-         << static_cast<long long>(elapsed_time.count()) << " sec: ";
-
-    *out << measurements->GetStatusMsg() << std::endl;
-
-    if (done) {
-      break;
-    }
-    done = latch->AwaitFor(interval);
-  };
-}
-
-void RateLimitThread(std::string rate_file,
-                     std::vector<ycsbc::utils::RateLimiter*> rate_limiters,
-                     ycsbc::utils::CountDownLatch* latch) {
-  std::ifstream ifs;
-  ifs.open(rate_file);
-
-  if (!ifs.is_open()) {
-    ycsbc::utils::Exception("failed to open: " + rate_file);
-  }
-
-  int64_t num_threads = rate_limiters.size();
-
-  int64_t last_time = 0;
-  while (!ifs.eof()) {
-    int64_t next_time;
-    int64_t next_rate;
-    ifs >> next_time >> next_rate;
-
-    if (next_time <= last_time) {
-      ycsbc::utils::Exception("invalid rate file");
-    }
-
-    bool done = latch->AwaitFor(next_time - last_time);
-    if (done) {
-      break;
-    }
-    last_time = next_time;
-
-    for (auto x : rate_limiters) {
-      x->SetRate(next_rate / num_threads);
-    }
-  }
-}
 
 int main(const int argc, const char* argv[]) {
   ycsbc::utils::Properties props;
@@ -385,7 +328,7 @@ int main(const int argc, const char* argv[]) {
 
     std::future<void> status_future;
     if (show_status) {
-      status_future = std::async(std::launch::async, StatusThread, measurements,
+      status_future = std::async(std::launch::async, ycsbc::StatusThread, measurements,
                                  &latch, status_interval, &info_os);
     }
     std::vector<std::future<int>> client_threads;
@@ -407,7 +350,7 @@ int main(const int argc, const char* argv[]) {
 
     std::future<void> rlim_future;
     if (rate_file != "") {
-      rlim_future = std::async(std::launch::async, RateLimitThread, rate_file,
+      rlim_future = std::async(std::launch::async, ycsbc::RateLimitThread, rate_file,
                                rate_limiters, &latch);
     }
 

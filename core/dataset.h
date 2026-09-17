@@ -11,7 +11,7 @@
 
 #include <memory>
 
-#include "core/core_workload.h"
+#include "core_workload.h"
 #include "utils/properties.h"
 
 namespace ycsbc {

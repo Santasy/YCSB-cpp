@@ -4,6 +4,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(ycsb-cpp LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Enable verbose compilation output
 set(CMAKE_VERBOSE_MAKEFILE OFF)
@@ -60,11 +61,17 @@ include(FindThreads)
 
 # --- Data-structure bindings -------------------------------------------------
 # ycsb_data_structs: OBJECT target holding all data-structure adapter sources
-# (e.g. std::map / std::set). They have no external deps, so they are always
-# compiled (the "map" / future "set" backends are in-memory only).
+# (e.g. std::map / std::set / cpp-btree). They have no external deps, so they
+# are always compiled (the "map" / "btree" backends are in-memory only).
+# stdlib is globbed recursively; cpp-btree only at the top level so the
+# module subdir's own (test) sources are not pulled in.
 file(GLOB_RECURSE YCSB_DATA_STRUCT_SRC CONFIGURE_DEPENDS "adapters/data-structures/stdlib/*.cc")
-add_library(ycsb_data_structs OBJECT ${YCSB_DATA_STRUCT_SRC})
+file(GLOB YCSB_BTREE_SRC CONFIGURE_DEPENDS "adapters/data-structures/cpp-btree/*.cc")
+add_library(ycsb_data_structs OBJECT ${YCSB_DATA_STRUCT_SRC} ${YCSB_BTREE_SRC})
 target_include_directories(ycsb_data_structs PUBLIC ${PROJECT_SOURCE_DIR})
+# cpp-btree is a header-only library under its submodule include root.
+target_include_directories(ycsb_data_structs PUBLIC
+    ${PROJECT_SOURCE_DIR}/adapters/data-structures/cpp-btree/module-cpp-btree/include)
 
 # --- Database adaptors --------------------------------------------------------
 # ycsb_db_adaptors: OBJECT target holding all database adapter sources. OBJECT
@@ -76,13 +83,25 @@ target_include_directories(ycsb_data_structs PUBLIC ${PROJECT_SOURCE_DIR})
 # adds itself below inside its own if(BIND_*) block, so builds stay compatible
 # with all DBs while never pulling in uninstalled headers.
 add_library(ycsb_db_adaptors OBJECT adapters/null/null_db.cc)
-add_executable(ycsb ${YCSB_CORE_SRC})
-target_sources(ycsb PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/utils/sha256.cpp)
-target_link_libraries(ycsb PRIVATE ycsb_db_adaptors ycsb_data_structs)
+# ycsb_core: OBJECT target holding the core/*.cc sources. Compiled once and
+# linked into both ycsb and ycsb_tests so symbols whose key function lives in a
+# core TU (e.g. DBInterface's vtable/typeinfo in core/db_interfaces.cc) are
+# available to both executables. core/ycsbc.cc defines main() and is therefore
+# kept out of the library and compiled only into the ycsb executable.
+set(YCSB_MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/core/ycsbc.cc)
+list(FILTER YCSB_CORE_SRC EXCLUDE REGEX "(^|/)ycsbc\\.cc$")
+add_library(ycsb_core OBJECT ${YCSB_CORE_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/utils/sha256.cpp)
+target_include_directories(ycsb_core PUBLIC ${PROJECT_SOURCE_DIR})
+add_executable(ycsb ${YCSB_MAIN_SRC})
+target_link_libraries(ycsb PRIVATE ycsb_core ycsb_db_adaptors ycsb_data_structs)
 
 if(NOT MSVC)
-    set_source_files_properties(${YCSB_CORE_SRC} ${YCSB_NULL_SRC} ${YCSB_DATA_STRUCT_SRC}
+    set_source_files_properties(${YCSB_CORE_SRC} ${YCSB_MAIN_SRC} ${YCSB_NULL_SRC} ${YCSB_DATA_STRUCT_SRC} ${YCSB_BTREE_SRC}
         PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter")
+    # The (old, 2013-era) cpp-btree headers trigger -Wdeprecated-copy under
+    # C++20/-Wextra; keep the build output clean without -Werror.
+    set_source_files_properties(${YCSB_BTREE_SRC}
+        PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter;-Wno-deprecated-copy")
 endif()
 target_include_directories(ycsb_db_adaptors PUBLIC ${PROJECT_SOURCE_DIR})
 
@@ -365,5 +384,5 @@ endif()
 
 if(YCSB_BUILD_TESTS)
     add_executable(ycsb_tests tests/test_fields.cc)
-    target_link_libraries(ycsb_tests PRIVATE ycsb_db_adaptors ycsb_data_structs)
+    target_link_libraries(ycsb_tests PRIVATE ycsb_core ycsb_db_adaptors ycsb_data_structs)
 endif()
