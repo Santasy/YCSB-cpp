@@ -27,10 +27,10 @@ Major refactors were applied to the benchmark framework to address these issues,
 ### Database bindings and adapter layout
 
 * Legacy shared adapter code under `db/` was removed (for example `db/db_factory.*`, `db/redis_db.*`)
-* Binding implementations are now organized under `adapters/` with per-engine directories (`adapters/rocksdb/`, `adapters/leveldb/`, `adapters/lmdb/`, `adapters/wiredtiger/`, `adapters/sqlite/`, `adapters/redis/`, `adapters/leaves/`), plus additional integration directories such as `adapters/aerospike/` and `adapters/null/`)
-* Redis binding was reworked (`adapters/redis/redis_db.{h,cc}`), and the vendored `redis/hiredis/` subtree was removed (38 files)
-* RocksDB support was expanded with a full adapter/options path (`adapters/rocksdb/rocksdb_db.{h,cc}`, `adapters/rocksdb/options.ini`)
-* SQLite and WiredTiger bindings include dedicated adapter and configuration files (`adapters/sqlite/sqlite_db.{h,cc}`, `adapters/wiredtiger/wiredtiger_db.{h,cc}`)
+* Database bindings are organized under `adapters/data-bases/` with per-engine directories (`adapters/data-bases/rocksdb/`, `adapters/data-bases/leveldb/`, `adapters/data-bases/lmdb/`, `adapters/data-bases/wiredtiger/`, `adapters/data-bases/sqlite/`, `adapters/data-bases/redis/`, `adapters/data-bases/leaves/`, `adapters/data-bases/aerospike/`); in-memory data-structure adapters live under `adapters/data-structures/` (`map` in `adapters/data-structures/stdlib/`), and the no-op `null` adapter under `adapters/null/`)
+* Redis binding was reworked (`adapters/data-bases/redis/redis_db.{h,cc}`), and the vendored `redis/hiredis/` subtree was removed (38 files)
+* RocksDB support was expanded with a full adapter/options path (`adapters/data-bases/rocksdb/rocksdb_db.{h,cc}`, `adapters/data-bases/rocksdb/options.ini`)
+* SQLite and WiredTiger bindings include dedicated adapter and configuration files (`adapters/data-bases/sqlite/sqlite_db.{h,cc}`, `adapters/data-bases/wiredtiger/wiredtiger_db.{h,cc}`)
 
 ### Workloads and benchmark automation
 
@@ -56,6 +56,36 @@ git diff --name-status --find-renames origin/master...HEAD
 ```
 
 # Build YCSB-cpp
+
+## Requirements
+
+The default build compiles out of the box: all DB bindings are OFF, leaving only
+the `null` (no-op) and `map` (in-memory `std::map`) adapters available. The only
+required prerequisite is initializing the submodules:
+
+```
+git submodule update --init
+```
+
+* zlib (optional): only needed for HdrHistogram's log-file compression (a feature
+  YCSB does not use) and for RocksDB's `zlib` compression codec. If it is missing,
+  the build emits a warning and continues without it. To install it (e.g. to bind
+  RocksDB with zlib compression):
+  ```
+  sudo apt install zlib1g-dev
+  ```
+
+* Database bindings (optional): each binding has its own prerequisites and is
+  enabled with a `BIND_*` build option. The per-adapter directories document their
+  own setup:
+  - [redis/README.md](adapters/data-bases/redis/README.md) — Redis server + hiredis client
+  - [sqlite/README.md](adapters/data-bases/sqlite/README.md) — build/run notes
+  - [wiredtiger/README.md](adapters/data-bases/wiredtiger/README.md) — WiredTiger library build with
+    built-in compressors
+  - [aerospike/README.md](adapters/data-bases/aerospike/README.md) — Aerospike server + client setup
+  - rocksdb, leveldb, lmdb and leaves have no README yet: they link against
+    system-installed or prebuilt libraries, configured via the `BIND_*`/`EXTRA_*`
+    build flags and their own `*.properties` files.
 
 ## Build with Makefile on POSIX
 
@@ -109,22 +139,22 @@ See [BUILD_ON_WINDOWS](BUILD_ON_WINDOWS.md).
 
 Load data with leveldb:
 ```
-./ycsb -load -db leveldb -P workloads/workloada -P adapters/leveldb/leveldb.properties -s
+./ycsb -load -db leveldb -P workloads/workloada -P adapters/data-bases/leveldb/leveldb.properties -s
 ```
 
 Run workload A with leveldb:
 ```
-./ycsb -run -db leveldb -P workloads/workloada -P adapters/leveldb/leveldb.properties -s
+./ycsb -run -db leveldb -P workloads/workloada -P adapters/data-bases/leveldb/leveldb.properties -s
 ```
 
 Load and run workload B with rocksdb:
 ```
-./ycsb -load -run -db rocksdb -P workloads/workloadb -P adapters/rocksdb/rocksdb.properties -s
+./ycsb -load -run -db rocksdb -P workloads/workloadb -P adapters/data-bases/rocksdb/rocksdb.properties -s
 ```
 
 Pass additional properties:
 ```
-./ycsb -load -db leveldb -P workloads/workloadb -P adapters/rocksdb/rocksdb.properties \
+./ycsb -load -db leveldb -P workloads/workloadb -P adapters/data-bases/rocksdb/rocksdb.properties \
     -p threadcount=4 -p recordcount=10000000 -p leveldb.cache_size=134217728 -s
 ```
 
@@ -176,6 +206,41 @@ Include Redis as a practical comparator if a local Redis server is available:
 
 ```shell
 INCLUDE_REDIS=1 EXTRA_PROPERTIES_FILE=./workloads/medium_workload.properties bash ./run_all_benchmarks.sh
+```
+
+## Post-processing and graphs
+
+The analysis scripts are plain Python 3. `create_throughput_matrix.py` uses only
+the standard library; `merge_benchmark_csvs.py` and `create_benchmark_graphs.py`
+need `pandas`, `numpy` and `matplotlib`, which are installed into a repo-local
+virtualenv (`venv/`, git-ignored):
+
+```shell
+python3 -m venv venv
+./venv/bin/pip install pandas numpy matplotlib
+```
+
+Build the throughput matrix from the raw `.log` files:
+
+```shell
+./venv/bin/python create_throughput_matrix.py --results-dir benchmark_results
+```
+
+Generate the comparison graphs from a matrix CSV (`--throughput-csv` and other
+paths are resolved relative to the current directory; charts are rendered
+headlessly with `MPLBACKEND=Agg` when no display is available):
+
+```shell
+MPLBACKEND=Agg ./venv/bin/python create_benchmark_graphs.py \
+    --throughput-csv benchmark_results/throughput_matrix.csv \
+    --output-dir benchmark_graphs
+```
+
+Merge multiple matrix CSVs, newest data winning on duplicate
+`(scenario, workload, database)` keys:
+
+```shell
+./venv/bin/python merge_benchmark_csvs.py --input-dir benchmark_results
 ```
 
 ## Configuration
