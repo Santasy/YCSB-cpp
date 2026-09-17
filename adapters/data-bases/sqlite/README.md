@@ -1,4 +1,4 @@
-# SQLite Binding for YCSB-cpp
+#SQLite Binding for YCSB - cpp
 
 This directory contains the SQLite binding for YCSB-cpp.
 
@@ -52,10 +52,10 @@ Configuration options are set in `sqlite.properties`:
 ## Running Benchmarks
 
 ```bash
-# Load data
+#Load data
 ./build/ycsb -load -db sqlite -P adapters/data-bases/sqlite/sqlite.properties -P workloads/workloada
 
-# Run workload
+#Run workload
 ./build/ycsb -run -db sqlite -P adapters/data-bases/sqlite/sqlite.properties -P workloads/workloada
 ```
 

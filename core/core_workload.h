@@ -27,258 +27,261 @@ namespace ycsbc {
 class Dataset;
 
 enum Operation {
-  INSERT = 0,
-  READ,
-  UPDATE,
-  SCAN,
-  READMODIFYWRITE,
-  DELETE,
-  BEGIN_TXN,
-  COMMIT_TXN,
-  ROLLBACK_TXN,
-  INSERT_FAILED,
-  READ_FAILED,
-  UPDATE_FAILED,
-  SCAN_FAILED,
-  READMODIFYWRITE_FAILED,
-  DELETE_FAILED,
-  MAXOPTYPE
+    INSERT = 0,
+    READ,
+    UPDATE,
+    SCAN,
+    READMODIFYWRITE,
+    DELETE,
+    BEGIN_TXN,
+    COMMIT_TXN,
+    ROLLBACK_TXN,
+    INSERT_FAILED,
+    READ_FAILED,
+    UPDATE_FAILED,
+    SCAN_FAILED,
+    READMODIFYWRITE_FAILED,
+    DELETE_FAILED,
+    MAXOPTYPE
 };
 
 extern const char *kOperationString[MAXOPTYPE];
 
 class CoreWorkload {
- public:
-  ///
-  /// The name of the database table to run queries against.
-  ///
-  static const std::string TABLENAME_PROPERTY;
-  static const std::string TABLENAME_DEFAULT;
+  public:
+    ///
+    /// The name of the database table to run queries against.
+    ///
+    static const std::string TABLENAME_PROPERTY;
+    static const std::string TABLENAME_DEFAULT;
 
-  ///
-  /// The name of the property for the number of fields in a record.
-  ///
-  static const std::string FIELD_COUNT_PROPERTY;
-  static const std::string FIELD_COUNT_DEFAULT;
+    ///
+    /// The name of the property for the number of fields in a record.
+    ///
+    static const std::string FIELD_COUNT_PROPERTY;
+    static const std::string FIELD_COUNT_DEFAULT;
 
-  ///
-  /// The name of the property for the field length distribution.
-  /// Options are "uniform", "zipfian" (favoring short records), and "constant".
-  ///
-  static const std::string FIELD_LENGTH_DISTRIBUTION_PROPERTY;
-  static const std::string FIELD_LENGTH_DISTRIBUTION_DEFAULT;
+    ///
+    /// The name of the property for the field length distribution.
+    /// Options are "uniform", "zipfian" (favoring short records), and
+    /// "constant".
+    ///
+    static const std::string FIELD_LENGTH_DISTRIBUTION_PROPERTY;
+    static const std::string FIELD_LENGTH_DISTRIBUTION_DEFAULT;
 
-  ///
-  /// The name of the property for the length of a field in bytes.
-  ///
-  static const std::string FIELD_LENGTH_PROPERTY;
-  static const std::string FIELD_LENGTH_DEFAULT;
+    ///
+    /// The name of the property for the length of a field in bytes.
+    ///
+    static const std::string FIELD_LENGTH_PROPERTY;
+    static const std::string FIELD_LENGTH_DEFAULT;
 
-  ///
-  /// The name of the property for deciding whether to read one field (false)
-  /// or all fields (true) of a record.
-  ///
-  static const std::string READ_ALL_FIELDS_PROPERTY;
-  static const std::string READ_ALL_FIELDS_DEFAULT;
+    ///
+    /// The name of the property for deciding whether to read one field (false)
+    /// or all fields (true) of a record.
+    ///
+    static const std::string READ_ALL_FIELDS_PROPERTY;
+    static const std::string READ_ALL_FIELDS_DEFAULT;
 
-  ///
-  /// The name of the property for deciding whether to write one field (false)
-  /// or all fields (true) of a record.
-  ///
-  static const std::string WRITE_ALL_FIELDS_PROPERTY;
-  static const std::string WRITE_ALL_FIELDS_DEFAULT;
+    ///
+    /// The name of the property for deciding whether to write one field (false)
+    /// or all fields (true) of a record.
+    ///
+    static const std::string WRITE_ALL_FIELDS_PROPERTY;
+    static const std::string WRITE_ALL_FIELDS_DEFAULT;
 
-  ///
-  /// The name of the property for the proportion of read transactions.
-  ///
-  static const std::string READ_PROPORTION_PROPERTY;
-  static const std::string READ_PROPORTION_DEFAULT;
+    ///
+    /// The name of the property for the proportion of read transactions.
+    ///
+    static const std::string READ_PROPORTION_PROPERTY;
+    static const std::string READ_PROPORTION_DEFAULT;
 
-  ///
-  /// The name of the property for the proportion of update transactions.
-  ///
-  static const std::string UPDATE_PROPORTION_PROPERTY;
-  static const std::string UPDATE_PROPORTION_DEFAULT;
+    ///
+    /// The name of the property for the proportion of update transactions.
+    ///
+    static const std::string UPDATE_PROPORTION_PROPERTY;
+    static const std::string UPDATE_PROPORTION_DEFAULT;
 
-  ///
-  /// The name of the property for the proportion of insert transactions.
-  ///
-  static const std::string INSERT_PROPORTION_PROPERTY;
-  static const std::string INSERT_PROPORTION_DEFAULT;
+    ///
+    /// The name of the property for the proportion of insert transactions.
+    ///
+    static const std::string INSERT_PROPORTION_PROPERTY;
+    static const std::string INSERT_PROPORTION_DEFAULT;
 
-  ///
-  /// The name of the property for the proportion of scan transactions.
-  ///
-  static const std::string SCAN_PROPORTION_PROPERTY;
-  static const std::string SCAN_PROPORTION_DEFAULT;
+    ///
+    /// The name of the property for the proportion of scan transactions.
+    ///
+    static const std::string SCAN_PROPORTION_PROPERTY;
+    static const std::string SCAN_PROPORTION_DEFAULT;
 
-  ///
-  /// The name of the property for the proportion of
-  /// read-modify-write transactions.
-  ///
-  static const std::string READMODIFYWRITE_PROPORTION_PROPERTY;
-  static const std::string READMODIFYWRITE_PROPORTION_DEFAULT;
+    ///
+    /// The name of the property for the proportion of
+    /// read-modify-write transactions.
+    ///
+    static const std::string READMODIFYWRITE_PROPORTION_PROPERTY;
+    static const std::string READMODIFYWRITE_PROPORTION_DEFAULT;
 
-  ///
-  /// The name of the property for the the distribution of request keys.
-  /// Options are "uniform", "zipfian" and "latest".
-  ///
-  static const std::string REQUEST_DISTRIBUTION_PROPERTY;
-  static const std::string REQUEST_DISTRIBUTION_DEFAULT;
+    ///
+    /// The name of the property for the the distribution of request keys.
+    /// Options are "uniform", "zipfian" and "latest".
+    ///
+    static const std::string REQUEST_DISTRIBUTION_PROPERTY;
+    static const std::string REQUEST_DISTRIBUTION_DEFAULT;
 
-  ///
-  /// The default zero padding value. Matches integer sort order
-  ///
-  static const std::string ZERO_PADDING_PROPERTY;
-  static const std::string ZERO_PADDING_DEFAULT;
+    ///
+    /// The default zero padding value. Matches integer sort order
+    ///
+    static const std::string ZERO_PADDING_PROPERTY;
+    static const std::string ZERO_PADDING_DEFAULT;
 
-  ///
-  /// The name of the property for the min scan length (number of records).
-  ///
-  static const std::string MIN_SCAN_LENGTH_PROPERTY;
-  static const std::string MIN_SCAN_LENGTH_DEFAULT;
+    ///
+    /// The name of the property for the min scan length (number of records).
+    ///
+    static const std::string MIN_SCAN_LENGTH_PROPERTY;
+    static const std::string MIN_SCAN_LENGTH_DEFAULT;
 
-  ///
-  /// The name of the property for the max scan length (number of records).
-  ///
-  static const std::string MAX_SCAN_LENGTH_PROPERTY;
-  static const std::string MAX_SCAN_LENGTH_DEFAULT;
+    ///
+    /// The name of the property for the max scan length (number of records).
+    ///
+    static const std::string MAX_SCAN_LENGTH_PROPERTY;
+    static const std::string MAX_SCAN_LENGTH_DEFAULT;
 
-  ///
-  /// The name of the property for the scan length distribution.
-  /// Options are "uniform" and "zipfian" (favoring short scans).
-  ///
-  static const std::string SCAN_LENGTH_DISTRIBUTION_PROPERTY;
-  static const std::string SCAN_LENGTH_DISTRIBUTION_DEFAULT;
+    ///
+    /// The name of the property for the scan length distribution.
+    /// Options are "uniform" and "zipfian" (favoring short scans).
+    ///
+    static const std::string SCAN_LENGTH_DISTRIBUTION_PROPERTY;
+    static const std::string SCAN_LENGTH_DISTRIBUTION_DEFAULT;
 
-  ///
-  /// The name of the property for the order to insert records.
-  /// Options are "ordered" or "hashed".
-  ///
-  static const std::string INSERT_ORDER_PROPERTY;
-  static const std::string INSERT_ORDER_DEFAULT;
+    ///
+    /// The name of the property for the order to insert records.
+    /// Options are "ordered" or "hashed".
+    ///
+    static const std::string INSERT_ORDER_PROPERTY;
+    static const std::string INSERT_ORDER_DEFAULT;
 
-  static const std::string HASH_ALGO_PROPERTY;
-  static const std::string HASH_ALGO_DEFAULT;
+    static const std::string HASH_ALGO_PROPERTY;
+    static const std::string HASH_ALGO_DEFAULT;
 
-  static const std::string INSERT_START_PROPERTY;
-  static const std::string INSERT_START_DEFAULT;
+    static const std::string INSERT_START_PROPERTY;
+    static const std::string INSERT_START_DEFAULT;
 
-  static const std::string RECORD_COUNT_PROPERTY;
-  static const std::string OPERATION_COUNT_PROPERTY;
+    static const std::string RECORD_COUNT_PROPERTY;
+    static const std::string OPERATION_COUNT_PROPERTY;
 
-  ///
-  /// Field name prefix.
-  ///
-  static const std::string FIELD_NAME_PREFIX;
-  static const std::string FIELD_NAME_PREFIX_DEFAULT;
+    ///
+    /// Field name prefix.
+    ///
+    static const std::string FIELD_NAME_PREFIX;
+    static const std::string FIELD_NAME_PREFIX_DEFAULT;
 
-  ///
-  /// Zipfian constant for transaction key generation.
-  ///
-  static const std::string ZIPFIAN_CONST_PROPERTY;
+    ///
+    /// Zipfian constant for transaction key generation.
+    ///
+    static const std::string ZIPFIAN_CONST_PROPERTY;
 
-  static const std::string BATCH_SIZE_PROPERTY;
-  static const std::string BATCH_SIZE_DEFAULT;
+    static const std::string BATCH_SIZE_PROPERTY;
+    static const std::string BATCH_SIZE_DEFAULT;
 
-  ///
-  /// Optional seed that makes the RNG stream (and pre-generated datasets)
-  /// reproducible across runs. Empty = non-deterministic default.
-  ///
-  static const std::string SEED_PROPERTY;
-  static const std::string SEED_DEFAULT;
+    ///
+    /// Optional seed that makes the RNG stream (and pre-generated datasets)
+    /// reproducible across runs. Empty = non-deterministic default.
+    ///
+    static const std::string SEED_PROPERTY;
+    static const std::string SEED_DEFAULT;
 
-  ///
-  /// Initialize the scenario.
-  /// Called once, in the main client thread, before any operations are started.
-  ///
-  virtual void Init(const utils::Properties &p);
+    ///
+    /// Initialize the scenario.
+    /// Called once, in the main client thread, before any operations are
+    /// started.
+    ///
+    virtual void Init(const utils::Properties &p);
 
-  virtual bool DoInsert(DB &db);
-  virtual bool DoTransaction(DB &db);
+    virtual bool DoInsert(DB &db);
+    virtual bool DoTransaction(DB &db);
 
-  // Pre-generate n operations (keys + values) outside the timed window.
-  // is_loading=true uses the load-phase insert key sequence;
-  // is_loading=false uses the transaction-phase op chooser.
-  // Call this from the main thread before timer.Start(); pass the resulting
-  // vector to ClientThread so the hot loop only calls DB methods.
-  struct WorkItem {
-    enum class OpType { INSERT, UPDATE, READ, SCAN, READMODIFYWRITE };
-    OpType type;
-    Slice key;
-    ReadonlyFields values;
-    int scan_len{0};
-  };
+    // Pre-generate n operations (keys + values) outside the timed window.
+    // is_loading=true uses the load-phase insert key sequence;
+    // is_loading=false uses the transaction-phase op chooser.
+    // Call this from the main thread before timer.Start(); pass the resulting
+    // vector to ClientThread so the hot loop only calls DB methods.
+    struct WorkItem {
+        enum class OpType { INSERT, UPDATE, READ, SCAN, READMODIFYWRITE };
+        OpType type;
+        Slice key;
+        ReadonlyFields values;
+        int scan_len{0};
+    };
 
-  void PrepareOpsForFile(std::ofstream& ofs, int n, bool is_loading);
+    void PrepareOpsForFile(std::ofstream &ofs, int n, bool is_loading);
 
-  const std::string &table_name() const { return table_name_; }
+    const std::string &table_name() const { return table_name_; }
 
-  bool read_all_fields() const { return read_all_fields_; }
-  bool write_all_fields() const { return write_all_fields_; }
+    bool read_all_fields() const { return read_all_fields_; }
+    bool write_all_fields() const { return write_all_fields_; }
 
-  CoreWorkload() :
-      field_count_(0), read_all_fields_(false), write_all_fields_(false),
-      field_len_generator_(nullptr), key_chooser_(nullptr), field_chooser_(nullptr),
-      scan_len_chooser_(nullptr), insert_key_sequence_(nullptr),
-      transaction_insert_key_sequence_(nullptr), ordered_inserts_(true), record_count_(0),
-      batch_size_(1) {
-  }
+    CoreWorkload()
+        : field_count_(0), read_all_fields_(false), write_all_fields_(false),
+          field_len_generator_(nullptr), key_chooser_(nullptr),
+          field_chooser_(nullptr), scan_len_chooser_(nullptr),
+          insert_key_sequence_(nullptr),
+          transaction_insert_key_sequence_(nullptr), ordered_inserts_(true),
+          record_count_(0), batch_size_(1) {}
 
-  virtual ~CoreWorkload() {
-    delete field_len_generator_;
-    delete key_chooser_;
-    delete field_chooser_;
-    delete scan_len_chooser_;
-    delete insert_key_sequence_;
-    delete transaction_insert_key_sequence_;
-  }
+    virtual ~CoreWorkload() {
+        delete field_len_generator_;
+        delete key_chooser_;
+        delete field_chooser_;
+        delete scan_len_chooser_;
+        delete insert_key_sequence_;
+        delete transaction_insert_key_sequence_;
+    }
 
-  const std::string &GetPropertiesHash() const { return properties_hash_; }
+    const std::string &GetPropertiesHash() const { return properties_hash_; }
 
-  int batch_size() const { return batch_size_; }
+    int batch_size() const { return batch_size_; }
 
- protected:
-  static Generator<uint64_t> *GetFieldLenGenerator(const utils::Properties &p,
-                                                   uint64_t seed);
-  std::string GetPropertiesHash(const utils::Properties &p);
-  std::string BuildKeyName(uint64_t key_num);
-  void BuildValues(Fields &values);
-  void BuildSingleValue(Fields &update);
+  protected:
+    static Generator<uint64_t> *GetFieldLenGenerator(const utils::Properties &p,
+                                                     uint64_t seed);
+    std::string GetPropertiesHash(const utils::Properties &p);
+    std::string BuildKeyName(uint64_t key_num);
+    void BuildValues(Fields &values);
+    void BuildSingleValue(Fields &update);
 
-  uint64_t NextTransactionKeyNum();
-  const std::string& NextFieldName();
+    uint64_t NextTransactionKeyNum();
+    const std::string &NextFieldName();
 
-  DB::Status TransactionRead(DB &db);
-  DB::Status TransactionReadModifyWrite(DB &db);
-  DB::Status TransactionScan(DB &db);
-  DB::Status TransactionUpdate(DB &db);
-  DB::Status TransactionInsert(DB &db);
+    DB::Status TransactionRead(DB &db);
+    DB::Status TransactionReadModifyWrite(DB &db);
+    DB::Status TransactionScan(DB &db);
+    DB::Status TransactionUpdate(DB &db);
+    DB::Status TransactionInsert(DB &db);
 
-  std::string table_name_;
-  int field_count_;
-  std::string field_prefix_;
-  bool read_all_fields_;
-  bool write_all_fields_;
-  Generator<uint64_t> *field_len_generator_;
-  DiscreteGenerator<Operation> op_chooser_;
-  Generator<uint64_t> *key_chooser_; // transaction key gen
-  Generator<uint64_t> *field_chooser_;
-  Generator<uint64_t> *scan_len_chooser_;
-  CounterGenerator *insert_key_sequence_; // load insert key gen
-  AcknowledgedCounterGenerator *transaction_insert_key_sequence_; // transaction insert key gen
-  bool ordered_inserts_;
-  std::string hash_algo_;
-  size_t record_count_;
-  int zero_padding_;
-  int batch_size_;
-  uint64_t seed_{0};
-  std::string properties_hash_;
-  
-  // Pre-built field names to avoid string construction in hot path
-  std::vector<std::string> field_names_;
+    std::string table_name_;
+    int field_count_;
+    std::string field_prefix_;
+    bool read_all_fields_;
+    bool write_all_fields_;
+    Generator<uint64_t> *field_len_generator_;
+    DiscreteGenerator<Operation> op_chooser_;
+    Generator<uint64_t> *key_chooser_; // transaction key gen
+    Generator<uint64_t> *field_chooser_;
+    Generator<uint64_t> *scan_len_chooser_;
+    CounterGenerator *insert_key_sequence_; // load insert key gen
+    AcknowledgedCounterGenerator
+        *transaction_insert_key_sequence_; // transaction insert key gen
+    bool ordered_inserts_;
+    std::string hash_algo_;
+    size_t record_count_;
+    int zero_padding_;
+    int batch_size_;
+    uint64_t seed_{0};
+    std::string properties_hash_;
+
+    // Pre-built field names to avoid string construction in hot path
+    std::vector<std::string> field_names_;
 };
 
-} // ycsbc
+} // namespace ycsbc
 
 #endif // YCSB_C_CORE_WORKLOAD_H_

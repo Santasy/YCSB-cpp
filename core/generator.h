@@ -13,14 +13,13 @@
 
 namespace ycsbc {
 
-template <typename Value>
-class Generator {
- public:
-  virtual Value Next() = 0;
-  virtual Value Last() = 0;
-  virtual ~Generator() { }
+template <typename Value> class Generator {
+  public:
+    virtual Value Next() = 0;
+    virtual Value Last() = 0;
+    virtual ~Generator() {}
 };
 
-} // ycsbc
+} // namespace ycsbc
 
 #endif // YCSB_C_GENERATOR_H_

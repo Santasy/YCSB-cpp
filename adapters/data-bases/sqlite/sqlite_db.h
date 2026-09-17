@@ -19,60 +19,63 @@
 namespace ycsbc {
 
 class SqliteDB : public DB {
- public:
-  SqliteDB() {}
-  ~SqliteDB() {}
+  public:
+    SqliteDB() {}
+    ~SqliteDB() {}
 
-  void Init();
+    void Init();
 
-  void Cleanup();
+    void Cleanup();
 
-  Status Read(const std::string &table, Slice key,
-              const std::unordered_set<std::string> *fields, Fields &result,
-              bool rmw = false) override;
+    Status Read(const std::string &table, Slice key,
+                const std::unordered_set<std::string> *fields, Fields &result,
+                bool rmw = false) override;
 
-  Status Scan(const std::string &table, Slice key, int len,
-              const std::unordered_set<std::string> *fields, std::vector<Fields> &result) override;
+    Status Scan(const std::string &table, Slice key, int len,
+                const std::unordered_set<std::string> *fields,
+                std::vector<Fields> &result) override;
 
-  Status Update(const std::string &table, Slice key, const ReadonlyFields &values) override;
+    Status Update(const std::string &table, Slice key,
+                  const ReadonlyFields &values) override;
 
-  Status Insert(const std::string &table, Slice key, const ReadonlyFields &values) override;
+    Status Insert(const std::string &table, Slice key,
+                  const ReadonlyFields &values) override;
 
-  Status Delete(const std::string &table, Slice key) override;
+    Status Delete(const std::string &table, Slice key) override;
 
-  Status Load(const std::string &table, Dataset &batch) override;
+    Status Load(const std::string &table, Dataset &batch) override;
 
-  Status BeginTransaction() override;
-  Status CommitTransaction() override;
-  Status RollbackTransaction() override;
-  void FlushPending() override;
+    Status BeginTransaction() override;
+    Status CommitTransaction() override;
+    Status RollbackTransaction() override;
+    void FlushPending() override;
 
- private:
-  void OpenDB();
-  void SetPragma();
-  void PrepareQueries();
+  private:
+    void OpenDB();
+    void SetPragma();
+    void PrepareQueries();
 
-  static sqlite3 *db_;
-  static int ref_cnt_;
-  static std::mutex mu_;
+    static sqlite3 *db_;
+    static int ref_cnt_;
+    static std::mutex mu_;
 
-  static std::string key_;
-  static std::string field_prefix_;
-  static size_t field_count_;
-  static std::string table_name_;
+    static std::string key_;
+    static std::string field_prefix_;
+    static size_t field_count_;
+    static std::string table_name_;
 
-  sqlite3_stmt *stmt_read_all_;
-  sqlite3_stmt *stmt_scan_all_;
-  sqlite3_stmt *stmt_update_all_;
-  sqlite3_stmt *stmt_insert_;
-  sqlite3_stmt *stmt_delete_;
-  std::unordered_map<std::string, sqlite3_stmt *> stmt_read_field_;
-  std::unordered_map<std::string, sqlite3_stmt *> stmt_scan_field_;
-  std::unordered_map<std::string, sqlite3_stmt *> stmt_update_field_;
+    sqlite3_stmt *stmt_read_all_;
+    sqlite3_stmt *stmt_scan_all_;
+    sqlite3_stmt *stmt_update_all_;
+    sqlite3_stmt *stmt_insert_;
+    sqlite3_stmt *stmt_delete_;
+    std::unordered_map<std::string, sqlite3_stmt *> stmt_read_field_;
+    std::unordered_map<std::string, sqlite3_stmt *> stmt_scan_field_;
+    std::unordered_map<std::string, sqlite3_stmt *> stmt_update_field_;
 };
 
 DB *NewSqliteDB();
 
-} // ycsbc
+} // namespace ycsbc
 
 #endif // YCSB_C_SQLITE_DB_H_

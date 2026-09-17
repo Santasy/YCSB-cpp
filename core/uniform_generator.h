@@ -17,35 +17,33 @@
 namespace ycsbc {
 
 class UniformGenerator : public Generator<uint64_t> {
- public:
-  // Both min and max are inclusive
-  UniformGenerator(uint64_t min, uint64_t max) : dist_(min, max) { Next(); }
+  public:
+    // Both min and max are inclusive
+    UniformGenerator(uint64_t min, uint64_t max) : dist_(min, max) { Next(); }
 
-  // Both min and max are inclusive. The engine is deterministically seeded,
-  // making the produced stream reproducible for a given seed.
-  UniformGenerator(uint64_t min, uint64_t max, uint64_t seed)
-      : dist_(min, max) {
-    generator_.seed(seed);
-    Next();
-  }
+    // Both min and max are inclusive. The engine is deterministically seeded,
+    // making the produced stream reproducible for a given seed.
+    UniformGenerator(uint64_t min, uint64_t max, uint64_t seed)
+        : dist_(min, max) {
+        generator_.seed(seed);
+        Next();
+    }
 
-  uint64_t Next();
-  uint64_t Last();
+    uint64_t Next();
+    uint64_t Last();
 
- private:
-  std::mt19937_64 generator_;
-  std::uniform_int_distribution<uint64_t> dist_;
-  uint64_t last_int_;
+  private:
+    std::mt19937_64 generator_;
+    std::uniform_int_distribution<uint64_t> dist_;
+    uint64_t last_int_;
 };
 
 inline uint64_t UniformGenerator::Next() {
-  return last_int_ = dist_(generator_);
+    return last_int_ = dist_(generator_);
 }
 
-inline uint64_t UniformGenerator::Last() {
-  return last_int_;
-}
+inline uint64_t UniformGenerator::Last() { return last_int_; }
 
-} // ycsbc
+} // namespace ycsbc
 
 #endif // YCSB_C_UNIFORM_GENERATOR_H_

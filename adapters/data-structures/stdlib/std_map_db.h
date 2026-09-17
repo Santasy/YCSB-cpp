@@ -25,29 +25,30 @@
 namespace ycsbc {
 
 class StdMapDB : public DBInterface {
- public:
-  StdMapDB() {}
-  ~StdMapDB() override {}
+  public:
+    StdMapDB() {}
+    ~StdMapDB() override {}
 
-  void Init() override;
+    void Init() override;
 
-  Status Get(const std::string &table, Slice key, std::string &value) override;
+    Status Get(const std::string &table, Slice key,
+               std::string &value) override;
 
-  Status Put(const std::string &table, Slice key, Slice value) override;
+    Status Put(const std::string &table, Slice key, Slice value) override;
 
-  Status Erase(const std::string &table, Slice key) override;
+    Status Erase(const std::string &table, Slice key) override;
 
-  Status Range(const std::string &table, Slice key, int count,
-               std::vector<std::string> &out) override;
+    Status Range(const std::string &table, Slice key, int count,
+                 std::vector<std::string> &out) override;
 
-  StoreStats GetStats(const std::string &table) override;
+    StoreStats GetStats(const std::string &table) override;
 
- private:
-  std::map<std::string, std::string> db_;
+  private:
+    std::map<std::string, std::string> db_;
 };
 
 DBInterface *NewStdMapDB();
 
-}  // namespace ycsbc
+} // namespace ycsbc
 
-#endif  // YCSB_C_STD_MAP_DB_H_
+#endif // YCSB_C_STD_MAP_DB_H_

@@ -1,4 +1,4 @@
-# Aerospike Database Binding for YCSB-cpp
+#Aerospike Database Binding for YCSB - cpp
 
 ## Overview
 
@@ -46,10 +46,10 @@ sudo systemctl start aerospike
 The client library should already be installed if you built YCSB-cpp with BIND_AEROSPIKE=ON. If you need to install it manually:
 
 ```bash
-# Install dependencies
+#Install dependencies
 sudo apt-get install -y libc6-dev libssl-dev autoconf automake libtool g++ zlib1g-dev libyaml-dev
 
-# Clone and build
+#Clone and build
 git clone --depth 1 https://github.com/aerospike/aerospike-client-c.git
 cd aerospike-client-c
 git submodule update --init
@@ -70,15 +70,15 @@ make
 Edit `adapters/data-bases/aerospike/aerospike.properties`:
 
 ```properties
-# Server connection
+#Server connection
 aerospike.host=127.0.0.1
 aerospike.port=3000
 
-# Database structure
+#Database structure
 aerospike.namespace=test
 aerospike.set=usertable
 
-# Async mode (requires libuv)
+#Async mode(requires libuv)
 aerospike.async=false
 aerospike.max_concurrent=100
 ```
@@ -182,10 +182,10 @@ asinfo -v "namespace/test"
 ### Cleanup
 To completely remove data:
 ```bash
-# Using Docker
+#Using Docker
 docker rm -f aerospike
 
-# Using native install
+#Using native install
 sudo systemctl stop aerospike
 sudo rm -rf /opt/aerospike/data/*
 ```

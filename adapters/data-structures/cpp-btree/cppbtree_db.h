@@ -27,29 +27,30 @@
 namespace ycsbc {
 
 class CppBTreeDB : public DBInterface {
- public:
-  CppBTreeDB() {}
-  ~CppBTreeDB() override {}
+  public:
+    CppBTreeDB() {}
+    ~CppBTreeDB() override {}
 
-  void Init() override;
+    void Init() override;
 
-  Status Get(const std::string &table, Slice key, std::string &value) override;
+    Status Get(const std::string &table, Slice key,
+               std::string &value) override;
 
-  Status Put(const std::string &table, Slice key, Slice value) override;
+    Status Put(const std::string &table, Slice key, Slice value) override;
 
-  Status Erase(const std::string &table, Slice key) override;
+    Status Erase(const std::string &table, Slice key) override;
 
-  Status Range(const std::string &table, Slice key, int count,
-               std::vector<std::string> &out) override;
+    Status Range(const std::string &table, Slice key, int count,
+                 std::vector<std::string> &out) override;
 
-  StoreStats GetStats(const std::string &table) override;
+    StoreStats GetStats(const std::string &table) override;
 
- private:
-  btree::btree_map<std::string, std::string> db_;
+  private:
+    btree::btree_map<std::string, std::string> db_;
 };
 
 DBInterface *NewCppBTreeDB();
 
-}  // namespace ycsbc
+} // namespace ycsbc
 
-#endif  // YCSB_C_CPPBTREE_DB_H_
+#endif // YCSB_C_CPPBTREE_DB_H_

@@ -29,7 +29,8 @@
 using ycsbc::CoreWorkload;
 using std::string;
 
-// Thread-local reusable buffers (moved from CoreWorkload members for thread-safety)
+// Thread-local reusable buffers (moved from CoreWorkload members for
+// thread-safety)
 static thread_local std::string tl_key_buffer;
 static thread_local ycsbc::Fields tl_result_buffer;
 static thread_local ycsbc::Fields tl_values_buffer;
@@ -38,22 +39,14 @@ static thread_local std::vector<ycsbc::Fields> tl_scan_result_buffer;
 static thread_local ycsbc::RandomByteGenerator tl_byte_generator;
 
 const char *ycsbc::kOperationString[ycsbc::MAXOPTYPE] = {
-  "INSERT",
-  "READ",
-  "UPDATE",
-  "SCAN",
-  "READMODIFYWRITE",
-  "DELETE",
-  "BEGIN_TXN",
-  "COMMIT_TXN",
-  "ROLLBACK_TXN",
-  "INSERT-FAILED",
-  "READ-FAILED",
-  "UPDATE-FAILED",
-  "SCAN-FAILED",
-  "READMODIFYWRITE-FAILED",
-  "DELETE-FAILED"
-};
+    "INSERT",          "READ",
+    "UPDATE",          "SCAN",
+    "READMODIFYWRITE", "DELETE",
+    "BEGIN_TXN",       "COMMIT_TXN",
+    "ROLLBACK_TXN",    "INSERT-FAILED",
+    "READ-FAILED",     "UPDATE-FAILED",
+    "SCAN-FAILED",     "READMODIFYWRITE-FAILED",
+    "DELETE-FAILED"};
 
 const string CoreWorkload::TABLENAME_PROPERTY = "table";
 const string CoreWorkload::TABLENAME_DEFAULT = "usertable";
@@ -61,7 +54,8 @@ const string CoreWorkload::TABLENAME_DEFAULT = "usertable";
 const string CoreWorkload::FIELD_COUNT_PROPERTY = "fieldcount";
 const string CoreWorkload::FIELD_COUNT_DEFAULT = "10";
 
-const string CoreWorkload::FIELD_LENGTH_DISTRIBUTION_PROPERTY = "field_len_dist";
+const string CoreWorkload::FIELD_LENGTH_DISTRIBUTION_PROPERTY =
+    "field_len_dist";
 const string CoreWorkload::FIELD_LENGTH_DISTRIBUTION_DEFAULT = "constant";
 
 const string CoreWorkload::FIELD_LENGTH_PROPERTY = "fieldlength";
@@ -85,10 +79,12 @@ const string CoreWorkload::INSERT_PROPORTION_DEFAULT = "0.0";
 const string CoreWorkload::SCAN_PROPORTION_PROPERTY = "scanproportion";
 const string CoreWorkload::SCAN_PROPORTION_DEFAULT = "0.0";
 
-const string CoreWorkload::READMODIFYWRITE_PROPORTION_PROPERTY = "readmodifywriteproportion";
+const string CoreWorkload::READMODIFYWRITE_PROPORTION_PROPERTY =
+    "readmodifywriteproportion";
 const string CoreWorkload::READMODIFYWRITE_PROPORTION_DEFAULT = "0.0";
 
-const string CoreWorkload::REQUEST_DISTRIBUTION_PROPERTY = "requestdistribution";
+const string CoreWorkload::REQUEST_DISTRIBUTION_PROPERTY =
+    "requestdistribution";
 const string CoreWorkload::REQUEST_DISTRIBUTION_DEFAULT = "uniform";
 
 const string CoreWorkload::ZERO_PADDING_PROPERTY = "zeropadding";
@@ -100,7 +96,8 @@ const string CoreWorkload::MIN_SCAN_LENGTH_DEFAULT = "1";
 const string CoreWorkload::MAX_SCAN_LENGTH_PROPERTY = "maxscanlength";
 const string CoreWorkload::MAX_SCAN_LENGTH_DEFAULT = "1000";
 
-const string CoreWorkload::SCAN_LENGTH_DISTRIBUTION_PROPERTY = "scanlengthdistribution";
+const string CoreWorkload::SCAN_LENGTH_DISTRIBUTION_PROPERTY =
+    "scanlengthdistribution";
 const string CoreWorkload::SCAN_LENGTH_DISTRIBUTION_DEFAULT = "uniform";
 
 const string CoreWorkload::INSERT_ORDER_PROPERTY = "insertorder";
@@ -134,483 +131,517 @@ constexpr uint64_t kFieldUniformSalt = 0xbb67ae8584caa73bull;
 constexpr uint64_t kScanLenUniformSalt = 0x3c6ef372fe94f82bull;
 constexpr uint64_t kFieldLenUniformSalt = 0xa54ff53a5f1d36f1ull;
 
-}  // namespace
+} // namespace
 
 namespace ycsbc {
 
 void CoreWorkload::Init(const utils::Properties &p) {
-  table_name_ = p.GetProperty(TABLENAME_PROPERTY,TABLENAME_DEFAULT);
+    table_name_ = p.GetProperty(TABLENAME_PROPERTY, TABLENAME_DEFAULT);
 
-  // Seed handling: an explicit `seed` makes the whole generator stream (and
-  // therefore the pre-generated datasets) reproducible across runs. When unset
-  // the thread-local RNG keeps its non-deterministic random_device seeding and
-  // uniform generators get a per-process random engine seed.
-  const std::string &seed_str = p.GetProperty(SEED_PROPERTY, SEED_DEFAULT);
-  if (!seed_str.empty()) {
-    seed_ = std::stoull(seed_str);
-    utils::SeedThreadLocalRng(seed_);
-  } else {
-    seed_ = utils::ThreadLocalRandomInt();
-  }
-
-  field_count_ = std::stoi(p.GetProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_DEFAULT));
-  field_prefix_ = p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
-  field_len_generator_ = GetFieldLenGenerator(p, seed_);
-
-  // Pre-build field names to avoid string construction in hot path
-  field_names_.reserve(field_count_);
-  for (int i = 0; i < field_count_; ++i) {
-    field_names_.push_back(field_prefix_ + std::to_string(i));
-  }
-
-  double read_proportion = std::stod(p.GetProperty(READ_PROPORTION_PROPERTY,
-                                                   READ_PROPORTION_DEFAULT));
-  double update_proportion = std::stod(p.GetProperty(UPDATE_PROPORTION_PROPERTY,
-                                                     UPDATE_PROPORTION_DEFAULT));
-  double insert_proportion = std::stod(p.GetProperty(INSERT_PROPORTION_PROPERTY,
-                                                     INSERT_PROPORTION_DEFAULT));
-  double scan_proportion = std::stod(p.GetProperty(SCAN_PROPORTION_PROPERTY,
-                                                   SCAN_PROPORTION_DEFAULT));
-  double readmodifywrite_proportion = std::stod(p.GetProperty(
-      READMODIFYWRITE_PROPORTION_PROPERTY, READMODIFYWRITE_PROPORTION_DEFAULT));
-
-  record_count_ = std::stoi(p.GetProperty(RECORD_COUNT_PROPERTY));
-  std::string request_dist = p.GetProperty(REQUEST_DISTRIBUTION_PROPERTY,
-                                           REQUEST_DISTRIBUTION_DEFAULT);
-  int min_scan_len = std::stoi(p.GetProperty(MIN_SCAN_LENGTH_PROPERTY, MIN_SCAN_LENGTH_DEFAULT));
-  int max_scan_len = std::stoi(p.GetProperty(MAX_SCAN_LENGTH_PROPERTY, MAX_SCAN_LENGTH_DEFAULT));
-  std::string scan_len_dist = p.GetProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY,
-                                            SCAN_LENGTH_DISTRIBUTION_DEFAULT);
-  int insert_start = std::stoi(p.GetProperty(INSERT_START_PROPERTY, INSERT_START_DEFAULT));
-
-  zero_padding_ = std::stoi(p.GetProperty(ZERO_PADDING_PROPERTY, ZERO_PADDING_DEFAULT));
-  batch_size_ = std::stoi(p.GetProperty(BATCH_SIZE_PROPERTY, BATCH_SIZE_DEFAULT));
-  if (batch_size_ < 1) batch_size_ = 1;
-
-  read_all_fields_ = utils::StrToBool(p.GetProperty(READ_ALL_FIELDS_PROPERTY,
-                                                    READ_ALL_FIELDS_DEFAULT));
-  write_all_fields_ = utils::StrToBool(p.GetProperty(WRITE_ALL_FIELDS_PROPERTY,
-                                                     WRITE_ALL_FIELDS_DEFAULT));
-
-  if (p.GetProperty(INSERT_ORDER_PROPERTY, INSERT_ORDER_DEFAULT) == "hashed") {
-    ordered_inserts_ = false;
-  } else {
-    ordered_inserts_ = true;
-  }
-
-  hash_algo_ = p.GetProperty(HASH_ALGO_PROPERTY, HASH_ALGO_DEFAULT);
-
-
-  if (read_proportion > 0) {
-    op_chooser_.AddValue(READ, read_proportion);
-  }
-  if (update_proportion > 0) {
-    op_chooser_.AddValue(UPDATE, update_proportion);
-  }
-  if (insert_proportion > 0) {
-    op_chooser_.AddValue(INSERT, insert_proportion);
-  }
-  if (scan_proportion > 0) {
-    op_chooser_.AddValue(SCAN, scan_proportion);
-  }
-  if (readmodifywrite_proportion > 0) {
-    op_chooser_.AddValue(READMODIFYWRITE, readmodifywrite_proportion);
-  }
-
-  insert_key_sequence_ = new CounterGenerator(insert_start);
-  transaction_insert_key_sequence_ = new AcknowledgedCounterGenerator(record_count_);
-
-  if (request_dist == "uniform") {
-    key_chooser_ = new UniformGenerator(0, record_count_ - 1,
-                                        seed_ ^ kKeyUniformSalt);
-
-  } else if (request_dist == "zipfian") {
-    // If the number of keys changes, we don't want to change popular keys.
-    // So we construct the scrambled zipfian generator with a keyspace
-    // that is larger than what exists at the beginning of the test.
-    // If the generator picks a key that is not inserted yet, we just ignore it
-    // and pick another key.
-    int op_count = std::stoi(p.GetProperty(OPERATION_COUNT_PROPERTY));
-    int new_keys = (int)(op_count * insert_proportion * 2); // a fudge factor
-    if (p.ContainsKey(ZIPFIAN_CONST_PROPERTY)) {
-      double zipfian_const = std::stod(p.GetProperty(ZIPFIAN_CONST_PROPERTY));
-      key_chooser_ = new ScrambledZipfianGenerator(0, record_count_ + new_keys - 1, zipfian_const);
+    // Seed handling: an explicit `seed` makes the whole generator stream (and
+    // therefore the pre-generated datasets) reproducible across runs. When
+    // unset the thread-local RNG keeps its non-deterministic random_device
+    // seeding and uniform generators get a per-process random engine seed.
+    const std::string &seed_str = p.GetProperty(SEED_PROPERTY, SEED_DEFAULT);
+    if(!seed_str.empty()) {
+        seed_ = std::stoull(seed_str);
+        utils::SeedThreadLocalRng(seed_);
     } else {
-      key_chooser_ = new ScrambledZipfianGenerator(record_count_ + new_keys);
+        seed_ = utils::ThreadLocalRandomInt();
     }
-  } else if (request_dist == "latest") {
-    key_chooser_ = new SkewedLatestGenerator(*transaction_insert_key_sequence_);
-  } else {
-    throw utils::Exception("Unknown request distribution: " + request_dist);
-  }
 
-  field_chooser_ = new UniformGenerator(0, field_count_ - 1,
-                                        seed_ ^ kFieldUniformSalt);
+    field_count_ =
+        std::stoi(p.GetProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_DEFAULT));
+    field_prefix_ = p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
+    field_len_generator_ = GetFieldLenGenerator(p, seed_);
 
-  if (scan_len_dist == "uniform") {
-    scan_len_chooser_ = new UniformGenerator(min_scan_len, max_scan_len,
-                                             seed_ ^ kScanLenUniformSalt);
-  } else if (scan_len_dist == "zipfian") {
-    scan_len_chooser_ = new ZipfianGenerator(min_scan_len, max_scan_len);
-  } else {
-    throw utils::Exception("Distribution not allowed for scan length: " + scan_len_dist);
-  }
-  properties_hash_ = GetPropertiesHash(p);
+    // Pre-build field names to avoid string construction in hot path
+    field_names_.reserve(field_count_);
+    for(int i = 0; i < field_count_; ++i) {
+        field_names_.push_back(field_prefix_ + std::to_string(i));
+    }
+
+    double read_proportion = std::stod(
+        p.GetProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_DEFAULT));
+    double update_proportion = std::stod(
+        p.GetProperty(UPDATE_PROPORTION_PROPERTY, UPDATE_PROPORTION_DEFAULT));
+    double insert_proportion = std::stod(
+        p.GetProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_DEFAULT));
+    double scan_proportion = std::stod(
+        p.GetProperty(SCAN_PROPORTION_PROPERTY, SCAN_PROPORTION_DEFAULT));
+    double readmodifywrite_proportion =
+        std::stod(p.GetProperty(READMODIFYWRITE_PROPORTION_PROPERTY,
+                                READMODIFYWRITE_PROPORTION_DEFAULT));
+
+    record_count_ = std::stoi(p.GetProperty(RECORD_COUNT_PROPERTY));
+    std::string request_dist = p.GetProperty(REQUEST_DISTRIBUTION_PROPERTY,
+                                             REQUEST_DISTRIBUTION_DEFAULT);
+    int min_scan_len = std::stoi(
+        p.GetProperty(MIN_SCAN_LENGTH_PROPERTY, MIN_SCAN_LENGTH_DEFAULT));
+    int max_scan_len = std::stoi(
+        p.GetProperty(MAX_SCAN_LENGTH_PROPERTY, MAX_SCAN_LENGTH_DEFAULT));
+    std::string scan_len_dist = p.GetProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY,
+                                              SCAN_LENGTH_DISTRIBUTION_DEFAULT);
+    int insert_start =
+        std::stoi(p.GetProperty(INSERT_START_PROPERTY, INSERT_START_DEFAULT));
+
+    zero_padding_ =
+        std::stoi(p.GetProperty(ZERO_PADDING_PROPERTY, ZERO_PADDING_DEFAULT));
+    batch_size_ =
+        std::stoi(p.GetProperty(BATCH_SIZE_PROPERTY, BATCH_SIZE_DEFAULT));
+    if(batch_size_ < 1)
+        batch_size_ = 1;
+
+    read_all_fields_ = utils::StrToBool(
+        p.GetProperty(READ_ALL_FIELDS_PROPERTY, READ_ALL_FIELDS_DEFAULT));
+    write_all_fields_ = utils::StrToBool(
+        p.GetProperty(WRITE_ALL_FIELDS_PROPERTY, WRITE_ALL_FIELDS_DEFAULT));
+
+    if(p.GetProperty(INSERT_ORDER_PROPERTY, INSERT_ORDER_DEFAULT) == "hashed") {
+        ordered_inserts_ = false;
+    } else {
+        ordered_inserts_ = true;
+    }
+
+    hash_algo_ = p.GetProperty(HASH_ALGO_PROPERTY, HASH_ALGO_DEFAULT);
+
+    if(read_proportion > 0) {
+        op_chooser_.AddValue(READ, read_proportion);
+    }
+    if(update_proportion > 0) {
+        op_chooser_.AddValue(UPDATE, update_proportion);
+    }
+    if(insert_proportion > 0) {
+        op_chooser_.AddValue(INSERT, insert_proportion);
+    }
+    if(scan_proportion > 0) {
+        op_chooser_.AddValue(SCAN, scan_proportion);
+    }
+    if(readmodifywrite_proportion > 0) {
+        op_chooser_.AddValue(READMODIFYWRITE, readmodifywrite_proportion);
+    }
+
+    insert_key_sequence_ = new CounterGenerator(insert_start);
+    transaction_insert_key_sequence_ =
+        new AcknowledgedCounterGenerator(record_count_);
+
+    if(request_dist == "uniform") {
+        key_chooser_ =
+            new UniformGenerator(0, record_count_ - 1, seed_ ^ kKeyUniformSalt);
+
+    } else if(request_dist == "zipfian") {
+        // If the number of keys changes, we don't want to change popular keys.
+        // So we construct the scrambled zipfian generator with a keyspace
+        // that is larger than what exists at the beginning of the test.
+        // If the generator picks a key that is not inserted yet, we just ignore
+        // it and pick another key.
+        int op_count = std::stoi(p.GetProperty(OPERATION_COUNT_PROPERTY));
+        int new_keys =
+            (int)(op_count * insert_proportion * 2); // a fudge factor
+        if(p.ContainsKey(ZIPFIAN_CONST_PROPERTY)) {
+            double zipfian_const =
+                std::stod(p.GetProperty(ZIPFIAN_CONST_PROPERTY));
+            key_chooser_ = new ScrambledZipfianGenerator(
+                0, record_count_ + new_keys - 1, zipfian_const);
+        } else {
+            key_chooser_ =
+                new ScrambledZipfianGenerator(record_count_ + new_keys);
+        }
+    } else if(request_dist == "latest") {
+        key_chooser_ =
+            new SkewedLatestGenerator(*transaction_insert_key_sequence_);
+    } else {
+        throw utils::Exception("Unknown request distribution: " + request_dist);
+    }
+
+    field_chooser_ =
+        new UniformGenerator(0, field_count_ - 1, seed_ ^ kFieldUniformSalt);
+
+    if(scan_len_dist == "uniform") {
+        scan_len_chooser_ = new UniformGenerator(min_scan_len, max_scan_len,
+                                                 seed_ ^ kScanLenUniformSalt);
+    } else if(scan_len_dist == "zipfian") {
+        scan_len_chooser_ = new ZipfianGenerator(min_scan_len, max_scan_len);
+    } else {
+        throw utils::Exception("Distribution not allowed for scan length: " +
+                               scan_len_dist);
+    }
+    properties_hash_ = GetPropertiesHash(p);
 }
 
 std::string CoreWorkload::GetPropertiesHash(const utils::Properties &p) {
-  // Canonical, ordered signature of every property that changes the generated
-  // dataset bytes (plus threadcount/seed, which change the per-thread split and
-  // the RNG stream). Missing keys are folded in with their defaults so a config
-  // that relies on defaults still reuses previously generated datasets.
-  std::string str_to_hash;
-  auto add = [&str_to_hash](const std::string &key, const std::string &value) {
-    str_to_hash += key + "=" + value + ";";
-  };
+    // Canonical, ordered signature of every property that changes the generated
+    // dataset bytes (plus threadcount/seed, which change the per-thread split
+    // and the RNG stream). Missing keys are folded in with their defaults so a
+    // config that relies on defaults still reuses previously generated
+    // datasets.
+    std::string str_to_hash;
+    auto add = [&str_to_hash](const std::string &key,
+                              const std::string &value) {
+        str_to_hash += key + "=" + value + ";";
+    };
 
-  add(READ_PROPORTION_PROPERTY,
-      p.GetProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_DEFAULT));
-  add(UPDATE_PROPORTION_PROPERTY,
-      p.GetProperty(UPDATE_PROPORTION_PROPERTY, UPDATE_PROPORTION_DEFAULT));
-  add(INSERT_PROPORTION_PROPERTY,
-      p.GetProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_DEFAULT));
-  add(SCAN_PROPORTION_PROPERTY,
-      p.GetProperty(SCAN_PROPORTION_PROPERTY, SCAN_PROPORTION_DEFAULT));
-  add(READMODIFYWRITE_PROPORTION_PROPERTY,
-      p.GetProperty(READMODIFYWRITE_PROPORTION_PROPERTY,
-                    READMODIFYWRITE_PROPORTION_DEFAULT));
-  add(REQUEST_DISTRIBUTION_PROPERTY,
-      p.GetProperty(REQUEST_DISTRIBUTION_PROPERTY,
-                    REQUEST_DISTRIBUTION_DEFAULT));
-  if (p.ContainsKey(ZIPFIAN_CONST_PROPERTY)) {
-    add(ZIPFIAN_CONST_PROPERTY, p.GetProperty(ZIPFIAN_CONST_PROPERTY));
-  } else {
-    add(ZIPFIAN_CONST_PROPERTY, "");
-  }
-  add(MIN_SCAN_LENGTH_PROPERTY,
-      p.GetProperty(MIN_SCAN_LENGTH_PROPERTY, MIN_SCAN_LENGTH_DEFAULT));
-  add(MAX_SCAN_LENGTH_PROPERTY,
-      p.GetProperty(MAX_SCAN_LENGTH_PROPERTY, MAX_SCAN_LENGTH_DEFAULT));
-  add(SCAN_LENGTH_DISTRIBUTION_PROPERTY,
-      p.GetProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY,
-                    SCAN_LENGTH_DISTRIBUTION_DEFAULT));
-  add(INSERT_ORDER_PROPERTY,
-      p.GetProperty(INSERT_ORDER_PROPERTY, INSERT_ORDER_DEFAULT));
-  add(HASH_ALGO_PROPERTY, p.GetProperty(HASH_ALGO_PROPERTY, HASH_ALGO_DEFAULT));
-  add(INSERT_START_PROPERTY,
-      p.GetProperty(INSERT_START_PROPERTY, INSERT_START_DEFAULT));
-  add(ZERO_PADDING_PROPERTY,
-      p.GetProperty(ZERO_PADDING_PROPERTY, ZERO_PADDING_DEFAULT));
-  add(FIELD_COUNT_PROPERTY,
-      p.GetProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_DEFAULT));
-  add(FIELD_LENGTH_PROPERTY,
-      p.GetProperty(FIELD_LENGTH_PROPERTY, FIELD_LENGTH_DEFAULT));
-  add(FIELD_LENGTH_DISTRIBUTION_PROPERTY,
-      p.GetProperty(FIELD_LENGTH_DISTRIBUTION_PROPERTY,
-                    FIELD_LENGTH_DISTRIBUTION_DEFAULT));
-  add(FIELD_NAME_PREFIX, p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT));
-  add(READ_ALL_FIELDS_PROPERTY,
-      p.GetProperty(READ_ALL_FIELDS_PROPERTY, READ_ALL_FIELDS_DEFAULT));
-  add(WRITE_ALL_FIELDS_PROPERTY,
-      p.GetProperty(WRITE_ALL_FIELDS_PROPERTY, WRITE_ALL_FIELDS_DEFAULT));
-  add(RECORD_COUNT_PROPERTY, p.GetProperty(RECORD_COUNT_PROPERTY));
-  add(BATCH_SIZE_PROPERTY,
-      p.GetProperty(BATCH_SIZE_PROPERTY, BATCH_SIZE_DEFAULT));
-  add("threadcount", p.GetProperty("threadcount", "1"));
-  add(SEED_PROPERTY, p.GetProperty(SEED_PROPERTY, SEED_DEFAULT));
-  return sha256(str_to_hash);
+    add(READ_PROPORTION_PROPERTY,
+        p.GetProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_DEFAULT));
+    add(UPDATE_PROPORTION_PROPERTY,
+        p.GetProperty(UPDATE_PROPORTION_PROPERTY, UPDATE_PROPORTION_DEFAULT));
+    add(INSERT_PROPORTION_PROPERTY,
+        p.GetProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_DEFAULT));
+    add(SCAN_PROPORTION_PROPERTY,
+        p.GetProperty(SCAN_PROPORTION_PROPERTY, SCAN_PROPORTION_DEFAULT));
+    add(READMODIFYWRITE_PROPORTION_PROPERTY,
+        p.GetProperty(READMODIFYWRITE_PROPORTION_PROPERTY,
+                      READMODIFYWRITE_PROPORTION_DEFAULT));
+    add(REQUEST_DISTRIBUTION_PROPERTY,
+        p.GetProperty(REQUEST_DISTRIBUTION_PROPERTY,
+                      REQUEST_DISTRIBUTION_DEFAULT));
+    if(p.ContainsKey(ZIPFIAN_CONST_PROPERTY)) {
+        add(ZIPFIAN_CONST_PROPERTY, p.GetProperty(ZIPFIAN_CONST_PROPERTY));
+    } else {
+        add(ZIPFIAN_CONST_PROPERTY, "");
+    }
+    add(MIN_SCAN_LENGTH_PROPERTY,
+        p.GetProperty(MIN_SCAN_LENGTH_PROPERTY, MIN_SCAN_LENGTH_DEFAULT));
+    add(MAX_SCAN_LENGTH_PROPERTY,
+        p.GetProperty(MAX_SCAN_LENGTH_PROPERTY, MAX_SCAN_LENGTH_DEFAULT));
+    add(SCAN_LENGTH_DISTRIBUTION_PROPERTY,
+        p.GetProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY,
+                      SCAN_LENGTH_DISTRIBUTION_DEFAULT));
+    add(INSERT_ORDER_PROPERTY,
+        p.GetProperty(INSERT_ORDER_PROPERTY, INSERT_ORDER_DEFAULT));
+    add(HASH_ALGO_PROPERTY,
+        p.GetProperty(HASH_ALGO_PROPERTY, HASH_ALGO_DEFAULT));
+    add(INSERT_START_PROPERTY,
+        p.GetProperty(INSERT_START_PROPERTY, INSERT_START_DEFAULT));
+    add(ZERO_PADDING_PROPERTY,
+        p.GetProperty(ZERO_PADDING_PROPERTY, ZERO_PADDING_DEFAULT));
+    add(FIELD_COUNT_PROPERTY,
+        p.GetProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_DEFAULT));
+    add(FIELD_LENGTH_PROPERTY,
+        p.GetProperty(FIELD_LENGTH_PROPERTY, FIELD_LENGTH_DEFAULT));
+    add(FIELD_LENGTH_DISTRIBUTION_PROPERTY,
+        p.GetProperty(FIELD_LENGTH_DISTRIBUTION_PROPERTY,
+                      FIELD_LENGTH_DISTRIBUTION_DEFAULT));
+    add(FIELD_NAME_PREFIX,
+        p.GetProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT));
+    add(READ_ALL_FIELDS_PROPERTY,
+        p.GetProperty(READ_ALL_FIELDS_PROPERTY, READ_ALL_FIELDS_DEFAULT));
+    add(WRITE_ALL_FIELDS_PROPERTY,
+        p.GetProperty(WRITE_ALL_FIELDS_PROPERTY, WRITE_ALL_FIELDS_DEFAULT));
+    add(RECORD_COUNT_PROPERTY, p.GetProperty(RECORD_COUNT_PROPERTY));
+    add(BATCH_SIZE_PROPERTY,
+        p.GetProperty(BATCH_SIZE_PROPERTY, BATCH_SIZE_DEFAULT));
+    add("threadcount", p.GetProperty("threadcount", "1"));
+    add(SEED_PROPERTY, p.GetProperty(SEED_PROPERTY, SEED_DEFAULT));
+    return sha256(str_to_hash);
 }
 
-ycsbc::Generator<uint64_t> *CoreWorkload::GetFieldLenGenerator(
-    const utils::Properties &p, uint64_t seed) {
-  string field_len_dist = p.GetProperty(FIELD_LENGTH_DISTRIBUTION_PROPERTY,
-                                        FIELD_LENGTH_DISTRIBUTION_DEFAULT);
-  int field_len = std::stoi(p.GetProperty(FIELD_LENGTH_PROPERTY, FIELD_LENGTH_DEFAULT));
-  if(field_len_dist == "constant") {
-    return new ConstGenerator(field_len);
-  } else if(field_len_dist == "uniform") {
-    return new UniformGenerator(1, field_len, seed ^ kFieldLenUniformSalt);
-  } else if(field_len_dist == "zipfian") {
-    return new ZipfianGenerator(1, field_len);
-  } else {
-    throw utils::Exception("Unknown field length distribution: " + field_len_dist);
-  }
+ycsbc::Generator<uint64_t> *
+CoreWorkload::GetFieldLenGenerator(const utils::Properties &p, uint64_t seed) {
+    string field_len_dist = p.GetProperty(FIELD_LENGTH_DISTRIBUTION_PROPERTY,
+                                          FIELD_LENGTH_DISTRIBUTION_DEFAULT);
+    int field_len =
+        std::stoi(p.GetProperty(FIELD_LENGTH_PROPERTY, FIELD_LENGTH_DEFAULT));
+    if(field_len_dist == "constant") {
+        return new ConstGenerator(field_len);
+    } else if(field_len_dist == "uniform") {
+        return new UniformGenerator(1, field_len, seed ^ kFieldLenUniformSalt);
+    } else if(field_len_dist == "zipfian") {
+        return new ZipfianGenerator(1, field_len);
+    } else {
+        throw utils::Exception("Unknown field length distribution: " +
+                               field_len_dist);
+    }
 }
 
 std::string CoreWorkload::BuildKeyName(uint64_t key_num) {
-  if (!ordered_inserts_) {
-    if (hash_algo_ == "sha256") {
-      char num_buf[32];
-      snprintf(num_buf, sizeof(num_buf), "%lu", key_num);
-      sha256bin(num_buf, tl_key_buffer);
-      return tl_key_buffer;
-    } else { // fnv
-      key_num = utils::Hash(key_num);
+    if(!ordered_inserts_) {
+        if(hash_algo_ == "sha256") {
+            char num_buf[32];
+            snprintf(num_buf, sizeof(num_buf), "%lu", key_num);
+            sha256bin(num_buf, tl_key_buffer);
+            return tl_key_buffer;
+        } else { // fnv
+            key_num = utils::Hash(key_num);
+        }
     }
-  }
-  
-  // Build key directly in thread-local buffer to avoid allocations
-  tl_key_buffer.clear();
-  tl_key_buffer.append("user");
-  
-  // Convert key_num to string and calculate padding
-  char num_buf[32];
-  int num_len = snprintf(num_buf, sizeof(num_buf), "%lu", key_num);
-  
-  int fill = std::max(0, zero_padding_ - num_len);
-  tl_key_buffer.append(fill, '0');
-  tl_key_buffer.append(num_buf, num_len);
-  
-  return tl_key_buffer;
+
+    // Build key directly in thread-local buffer to avoid allocations
+    tl_key_buffer.clear();
+    tl_key_buffer.append("user");
+
+    // Convert key_num to string and calculate padding
+    char num_buf[32];
+    int num_len = snprintf(num_buf, sizeof(num_buf), "%lu", key_num);
+
+    int fill = std::max(0, zero_padding_ - num_len);
+    tl_key_buffer.append(fill, '0');
+    tl_key_buffer.append(num_buf, num_len);
+
+    return tl_key_buffer;
 }
 
 void CoreWorkload::BuildValues(Fields &values) {
-  values.clear();
-  for (int i = 0; i < field_count_; ++i) {
-    // Use pre-built field name
-    const std::string& field_name = field_names_[i];
-    uint64_t len = field_len_generator_->Next();
-    
-    // Build value string
-    std::string field_value;
-    field_value.reserve(len);
-    std::generate_n(std::back_inserter(field_value), len, []() { return tl_byte_generator.Next(); });
-    
-    values.push(field_name, field_value);
-  }
+    values.clear();
+    for(int i = 0; i < field_count_; ++i) {
+        // Use pre-built field name
+        const std::string &field_name = field_names_[i];
+        uint64_t len = field_len_generator_->Next();
+
+        // Build value string
+        std::string field_value;
+        field_value.reserve(len);
+        std::generate_n(std::back_inserter(field_value), len,
+                        []() { return tl_byte_generator.Next(); });
+
+        values.push(field_name, field_value);
+    }
 }
 
 void CoreWorkload::BuildSingleValue(Fields &values) {
-  values.clear();
-  const std::string& field_name = NextFieldName();
-  uint64_t len = field_len_generator_->Next();
-  
-  // Build value string
-  std::string field_value;
-  field_value.reserve(len);
-  std::generate_n(std::back_inserter(field_value), len, []() { return tl_byte_generator.Next(); });
-  
-  values.push(field_name, field_value);
+    values.clear();
+    const std::string &field_name = NextFieldName();
+    uint64_t len = field_len_generator_->Next();
+
+    // Build value string
+    std::string field_value;
+    field_value.reserve(len);
+    std::generate_n(std::back_inserter(field_value), len,
+                    []() { return tl_byte_generator.Next(); });
+
+    values.push(field_name, field_value);
 }
 
 uint64_t CoreWorkload::NextTransactionKeyNum() {
-  uint64_t key_num;
-  do {
-    key_num = key_chooser_->Next();
-  } while (key_num > transaction_insert_key_sequence_->Last());
-  return key_num;
+    uint64_t key_num;
+    do {
+        key_num = key_chooser_->Next();
+    } while(key_num > transaction_insert_key_sequence_->Last());
+    return key_num;
 }
 
-const std::string& CoreWorkload::NextFieldName() {
-  // Return pre-built field name by const reference to avoid copy
-  return field_names_[field_chooser_->Next()];
+const std::string &CoreWorkload::NextFieldName() {
+    // Return pre-built field name by const reference to avoid copy
+    return field_names_[field_chooser_->Next()];
 }
 
 bool CoreWorkload::DoInsert(DB &db) {
-  BuildKeyName(insert_key_sequence_->Next());
-  tl_values_buffer.clear();
-  BuildValues(tl_values_buffer);
-  return db.Insert(table_name_, tl_key_buffer, tl_values_buffer) == DB::kOK;
+    BuildKeyName(insert_key_sequence_->Next());
+    tl_values_buffer.clear();
+    BuildValues(tl_values_buffer);
+    return db.Insert(table_name_, tl_key_buffer, tl_values_buffer) == DB::kOK;
 }
 
 bool CoreWorkload::DoTransaction(DB &db) {
-  DB::Status status;
-  switch (op_chooser_.Next()) {
+    DB::Status status;
+    switch(op_chooser_.Next()) {
     case READ:
-      status = TransactionRead(db);
-      break;
+        status = TransactionRead(db);
+        break;
     case UPDATE:
-      status = TransactionUpdate(db);
-      break;
+        status = TransactionUpdate(db);
+        break;
     case INSERT:
-      status = TransactionInsert(db);
-      break;
+        status = TransactionInsert(db);
+        break;
     case SCAN:
-      status = TransactionScan(db);
-      break;
+        status = TransactionScan(db);
+        break;
     case READMODIFYWRITE:
-      status = TransactionReadModifyWrite(db);
-      break;
+        status = TransactionReadModifyWrite(db);
+        break;
     default:
-      throw utils::Exception("Operation request is not recognized!");
-  }
-  return (status == DB::kOK);
+        throw utils::Exception("Operation request is not recognized!");
+    }
+    return (status == DB::kOK);
 }
 
 DB::Status CoreWorkload::TransactionRead(DB &db) {
-  uint64_t key_num = NextTransactionKeyNum();
-  BuildKeyName(key_num);
-  tl_result_buffer.clear();
-  if (!read_all_fields()) {
-    tl_fields_buffer.clear();
-    tl_fields_buffer.insert(NextFieldName());
-    return db.Read(table_name_, tl_key_buffer, &tl_fields_buffer, tl_result_buffer);
-  } else {
-    return db.Read(table_name_, tl_key_buffer, NULL, tl_result_buffer);
-  }
+    uint64_t key_num = NextTransactionKeyNum();
+    BuildKeyName(key_num);
+    tl_result_buffer.clear();
+    if(!read_all_fields()) {
+        tl_fields_buffer.clear();
+        tl_fields_buffer.insert(NextFieldName());
+        return db.Read(table_name_, tl_key_buffer, &tl_fields_buffer,
+                       tl_result_buffer);
+    } else {
+        return db.Read(table_name_, tl_key_buffer, NULL, tl_result_buffer);
+    }
 }
 
 DB::Status CoreWorkload::TransactionReadModifyWrite(DB &db) {
-  uint64_t key_num = NextTransactionKeyNum();
-  BuildKeyName(key_num);
-  tl_result_buffer.clear();
+    uint64_t key_num = NextTransactionKeyNum();
+    BuildKeyName(key_num);
+    tl_result_buffer.clear();
 
-  if (!read_all_fields()) {
-    tl_fields_buffer.clear();
-    tl_fields_buffer.insert(NextFieldName());
-    db.Read(table_name_, tl_key_buffer, &tl_fields_buffer, tl_result_buffer, true);
-  } else {
-    db.Read(table_name_, tl_key_buffer, NULL, tl_result_buffer, true);
-  }
+    if(!read_all_fields()) {
+        tl_fields_buffer.clear();
+        tl_fields_buffer.insert(NextFieldName());
+        db.Read(table_name_, tl_key_buffer, &tl_fields_buffer, tl_result_buffer,
+                true);
+    } else {
+        db.Read(table_name_, tl_key_buffer, NULL, tl_result_buffer, true);
+    }
 
-  tl_values_buffer.clear();
-  if (write_all_fields()) {
-    BuildValues(tl_values_buffer);
-  } else {
-    BuildSingleValue(tl_values_buffer);
-  }
-  return db.Update(table_name_, tl_key_buffer, tl_values_buffer);
+    tl_values_buffer.clear();
+    if(write_all_fields()) {
+        BuildValues(tl_values_buffer);
+    } else {
+        BuildSingleValue(tl_values_buffer);
+    }
+    return db.Update(table_name_, tl_key_buffer, tl_values_buffer);
 }
 
 DB::Status CoreWorkload::TransactionScan(DB &db) {
-  uint64_t key_num = NextTransactionKeyNum();
-  BuildKeyName(key_num);
-  int len = scan_len_chooser_->Next();
-  tl_scan_result_buffer.clear();
-  if (!read_all_fields()) {
-    tl_fields_buffer.clear();
-    tl_fields_buffer.insert(NextFieldName());
-    return db.Scan(table_name_, tl_key_buffer, len, &tl_fields_buffer, tl_scan_result_buffer);
-  } else {
-    return db.Scan(table_name_, tl_key_buffer, len, NULL, tl_scan_result_buffer);
-  }
+    uint64_t key_num = NextTransactionKeyNum();
+    BuildKeyName(key_num);
+    int len = scan_len_chooser_->Next();
+    tl_scan_result_buffer.clear();
+    if(!read_all_fields()) {
+        tl_fields_buffer.clear();
+        tl_fields_buffer.insert(NextFieldName());
+        return db.Scan(table_name_, tl_key_buffer, len, &tl_fields_buffer,
+                       tl_scan_result_buffer);
+    } else {
+        return db.Scan(table_name_, tl_key_buffer, len, NULL,
+                       tl_scan_result_buffer);
+    }
 }
 
 DB::Status CoreWorkload::TransactionUpdate(DB &db) {
-  uint64_t key_num = NextTransactionKeyNum();
-  BuildKeyName(key_num);
-  tl_values_buffer.clear();
-  if (write_all_fields()) {
-    BuildValues(tl_values_buffer);
-  } else {
-    BuildSingleValue(tl_values_buffer);
-  }
-  return db.Update(table_name_, tl_key_buffer, tl_values_buffer);
+    uint64_t key_num = NextTransactionKeyNum();
+    BuildKeyName(key_num);
+    tl_values_buffer.clear();
+    if(write_all_fields()) {
+        BuildValues(tl_values_buffer);
+    } else {
+        BuildSingleValue(tl_values_buffer);
+    }
+    return db.Update(table_name_, tl_key_buffer, tl_values_buffer);
 }
 
 DB::Status CoreWorkload::TransactionInsert(DB &db) {
-  uint64_t key_num = transaction_insert_key_sequence_->Next();
-  BuildKeyName(key_num);
-  tl_values_buffer.clear();
-  BuildValues(tl_values_buffer);
-  DB::Status s = db.Insert(table_name_, tl_key_buffer, tl_values_buffer);
-  transaction_insert_key_sequence_->Acknowledge(key_num);
-  return s;
+    uint64_t key_num = transaction_insert_key_sequence_->Next();
+    BuildKeyName(key_num);
+    tl_values_buffer.clear();
+    BuildValues(tl_values_buffer);
+    DB::Status s = db.Insert(table_name_, tl_key_buffer, tl_values_buffer);
+    transaction_insert_key_sequence_->Acknowledge(key_num);
+    return s;
 }
 
-void CoreWorkload::PrepareOpsForFile(std::ofstream& ofs, int n, bool is_loading) {
-  struct WorkItemLocal {
-    WorkItem::OpType type;
-    std::string key;
-    Fields values;
-    int scan_len{0};
-  };
+void CoreWorkload::PrepareOpsForFile(std::ofstream &ofs, int n,
+                                     bool is_loading) {
+    struct WorkItemLocal {
+        WorkItem::OpType type;
+        std::string key;
+        Fields values;
+        int scan_len{0};
+    };
 
-  WorkItemLocal item;
-  for (int i = 0; i < n; ++i) {
-    if (is_loading) {
-      item.type = WorkItem::OpType::INSERT;
-      item.key = BuildKeyName(insert_key_sequence_->Next());
-      BuildValues(item.values);
-    } else {
-      switch (op_chooser_.Next()) {
-        case READ:
-          item.type = WorkItem::OpType::READ;
-          item.key = BuildKeyName(NextTransactionKeyNum());
-          item.values.clear();
-          break;
-        case UPDATE:
-          item.type = WorkItem::OpType::UPDATE;
-          item.key = BuildKeyName(NextTransactionKeyNum());
-          if (write_all_fields_) BuildValues(item.values);
-          else BuildSingleValue(item.values);
-          break;
-        case INSERT: {
-          item.type = WorkItem::OpType::INSERT;
-          uint64_t key_num = transaction_insert_key_sequence_->Next();
-          item.key = BuildKeyName(key_num);
-          BuildValues(item.values);
-          transaction_insert_key_sequence_->Acknowledge(key_num);
-          break;
+    WorkItemLocal item;
+    for(int i = 0; i < n; ++i) {
+        if(is_loading) {
+            item.type = WorkItem::OpType::INSERT;
+            item.key = BuildKeyName(insert_key_sequence_->Next());
+            BuildValues(item.values);
+        } else {
+            switch(op_chooser_.Next()) {
+            case READ:
+                item.type = WorkItem::OpType::READ;
+                item.key = BuildKeyName(NextTransactionKeyNum());
+                item.values.clear();
+                break;
+            case UPDATE:
+                item.type = WorkItem::OpType::UPDATE;
+                item.key = BuildKeyName(NextTransactionKeyNum());
+                if(write_all_fields_)
+                    BuildValues(item.values);
+                else
+                    BuildSingleValue(item.values);
+                break;
+            case INSERT: {
+                item.type = WorkItem::OpType::INSERT;
+                uint64_t key_num = transaction_insert_key_sequence_->Next();
+                item.key = BuildKeyName(key_num);
+                BuildValues(item.values);
+                transaction_insert_key_sequence_->Acknowledge(key_num);
+                break;
+            }
+            case SCAN:
+                item.type = WorkItem::OpType::SCAN;
+                item.key = BuildKeyName(NextTransactionKeyNum());
+                item.scan_len = scan_len_chooser_->Next();
+                item.values.clear();
+                break;
+            case READMODIFYWRITE:
+                item.type = WorkItem::OpType::READMODIFYWRITE;
+                item.key = BuildKeyName(NextTransactionKeyNum());
+                if(write_all_fields_)
+                    BuildValues(item.values);
+                else
+                    BuildSingleValue(item.values);
+                break;
+            default:
+                throw utils::Exception("Operation request is not recognized!");
+            }
         }
-        case SCAN:
-          item.type = WorkItem::OpType::SCAN;
-          item.key = BuildKeyName(NextTransactionKeyNum());
-          item.scan_len = scan_len_chooser_->Next();
-          item.values.clear();
-          break;
-        case READMODIFYWRITE:
-          item.type = WorkItem::OpType::READMODIFYWRITE;
-          item.key = BuildKeyName(NextTransactionKeyNum());
-          if (write_all_fields_) BuildValues(item.values);
-          else BuildSingleValue(item.values);
-          break;
+
+        uint32_t key_len = item.key.length();
+        uint32_t op_specific_data_len = 0;
+        switch(item.type) {
+        case WorkItem::OpType::INSERT:
+        case WorkItem::OpType::UPDATE:
+        case WorkItem::OpType::READMODIFYWRITE: {
+            const std::string &buffer = item.values.buffer();
+            op_specific_data_len += sizeof(uint32_t) + buffer.size();
+            break;
+        }
+        case WorkItem::OpType::SCAN: {
+            op_specific_data_len += sizeof(uint32_t);
+            break;
+        }
         default:
-          throw utils::Exception("Operation request is not recognized!");
-      }
+            break;
+        }
+
+        Meta meta;
+        meta.key_offset = ofs.tellp();
+        meta.key_offset += sizeof(char) + sizeof(uint64_t) + sizeof(Meta);
+        meta.op_specific_data_offset =
+            meta.key_offset + sizeof(uint32_t) + key_len;
+        meta.next_record_offset =
+            meta.op_specific_data_offset + op_specific_data_len;
+
+        ofs.put(static_cast<char>(item.type));
+        uint64_t meta_len = sizeof(Meta);
+        ofs.write(reinterpret_cast<const char *>(&meta_len), sizeof(meta_len));
+        ofs.write(reinterpret_cast<const char *>(&meta), sizeof(meta));
+
+        ofs.write(reinterpret_cast<const char *>(&key_len), sizeof(key_len));
+        ofs.write(item.key.data(), key_len);
+
+        switch(item.type) {
+        case WorkItem::OpType::INSERT:
+        case WorkItem::OpType::UPDATE:
+        case WorkItem::OpType::READMODIFYWRITE: {
+            const std::string &buffer = item.values.buffer();
+            uint32_t fields_size = buffer.size();
+            ofs.write(reinterpret_cast<const char *>(&fields_size),
+                      sizeof(fields_size));
+            ofs.write(buffer.data(), fields_size);
+            break;
+        }
+        case WorkItem::OpType::SCAN: {
+            ofs.write(reinterpret_cast<const char *>(&item.scan_len),
+                      sizeof(item.scan_len));
+            break;
+        }
+        default:
+            break;
+        }
     }
-
-    uint32_t key_len = item.key.length();
-    uint32_t op_specific_data_len = 0;
-    switch (item.type) {
-      case WorkItem::OpType::INSERT:
-      case WorkItem::OpType::UPDATE:
-      case WorkItem::OpType::READMODIFYWRITE: {
-        const std::string& buffer = item.values.buffer();
-        op_specific_data_len += sizeof(uint32_t) + buffer.size();
-        break;
-      }
-      case WorkItem::OpType::SCAN: {
-        op_specific_data_len += sizeof(uint32_t);
-        break;
-      }
-      default:
-        break;
-    }
-
-    Meta meta;
-    meta.key_offset = ofs.tellp();
-    meta.key_offset += sizeof(char) + sizeof(uint64_t) + sizeof(Meta);
-    meta.op_specific_data_offset = meta.key_offset + sizeof(uint32_t) + key_len;
-    meta.next_record_offset = meta.op_specific_data_offset + op_specific_data_len;
-    
-    ofs.put(static_cast<char>(item.type));
-    uint64_t meta_len = sizeof(Meta);
-    ofs.write(reinterpret_cast<const char*>(&meta_len), sizeof(meta_len));
-    ofs.write(reinterpret_cast<const char*>(&meta), sizeof(meta));
-
-    ofs.write(reinterpret_cast<const char*>(&key_len), sizeof(key_len));
-    ofs.write(item.key.data(), key_len);
-
-    switch (item.type) {
-      case WorkItem::OpType::INSERT:
-      case WorkItem::OpType::UPDATE:
-      case WorkItem::OpType::READMODIFYWRITE: {
-        const std::string& buffer = item.values.buffer();
-        uint32_t fields_size = buffer.size();
-        ofs.write(reinterpret_cast<const char*>(&fields_size), sizeof(fields_size));
-        ofs.write(buffer.data(), fields_size);
-        break;
-      }
-      case WorkItem::OpType::SCAN: {
-        ofs.write(reinterpret_cast<const char*>(&item.scan_len), sizeof(item.scan_len));
-        break;
-      }
-      default:
-        break;
-    }
-  }
 }
 
-} // ycsbc
-
+} // namespace ycsbc

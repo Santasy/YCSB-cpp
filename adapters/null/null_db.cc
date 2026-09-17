@@ -10,9 +10,7 @@
 
 namespace ycsbc {
 
-DB *NewNullDB() {
-  return new NullDB;
-}
+DB *NewNullDB() { return new NullDB; }
 
 const bool registered = DBFactory::RegisterDB("null", NewNullDB);
 

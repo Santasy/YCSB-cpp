@@ -1,4 +1,4 @@
-# Redis Binding for YCSB-cpp
+#Redis Binding for YCSB - cpp
 
 This directory contains the Redis binding for YCSB-cpp.
 
@@ -65,7 +65,9 @@ redis-server
 
 Redis is a key-value store. This binding stores YCSB records as Redis hashes:
 
-- **Key format**: `{table}:{key}` (e.g., `usertable:user1234`)
+- **Key format**: `{table}:{
+    key
+}` (e.g., `usertable:user1234`)
 - **Fields**: Stored as hash fields using `HMSET`/`HGETALL`/`HMGET`
 
 Example Redis commands:

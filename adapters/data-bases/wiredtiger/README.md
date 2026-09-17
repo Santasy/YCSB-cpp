@@ -1,4 +1,4 @@
-# WiredTiger
+#WiredTiger
 
 The code in `adapters/data-bases/wiredtiger/wiredtiger_db.cc` assumes your libwiredtiger to have built-in `<compressor>` that you specify in
 `adapters/data-bases/wiredtiger/wiredtiger.properties`.
