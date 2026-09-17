@@ -16,6 +16,9 @@ operationcount=5000000
 workload=com.yahoo.ycsb.workloads.CoreWorkload
 threadcount=8
 
+# Storage engines only: needs concurrent readers/writers across threads.
+adapter.kinds=db
+
 readallfields=true
 
 readproportion=0.50

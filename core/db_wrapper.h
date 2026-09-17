@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "db.h"
+#include "db_database.h"
 #include "dataset.h"
 #include "measurements.h"
 #include "utils/timer.h"
@@ -58,6 +58,9 @@ class DBWrapper : public DB {
   Status Load(const std::string &table, Dataset &batch) {
     // No per-op measurement; the caller measures the full load phase externally.
     return db_->Load(table, batch);
+  }
+  StoreStats GetStats(const std::string &table) {
+    return db_->GetStats(table);
   }
   Status Read(const std::string &table, Slice key,
               const std::unordered_set<std::string> *fields, Fields &result,

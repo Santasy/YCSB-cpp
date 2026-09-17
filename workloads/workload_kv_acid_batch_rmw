@@ -14,6 +14,9 @@
 # With batch_size=8 and operationcount=10000:
 #   ~1250 transactions (each with 8 RMW ops = 16 DB calls)
 
+# Storage engines only: multi-key transactions require engine support.
+adapter.kinds=db
+
 recordcount=1000000
 operationcount=10000
 workload=com.yahoo.ycsb.workloads.CoreWorkload

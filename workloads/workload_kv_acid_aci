@@ -5,6 +5,9 @@
 # Read/update/RMW ratio: 25/35/40
 # Request distribution: zipfian
 
+# Storage engines only: strict-durability ACID semantics are engine features.
+adapter.kinds=db
+
 recordcount=1000000
 operationcount=10000
 workload=com.yahoo.ycsb.workloads.CoreWorkload

@@ -19,6 +19,15 @@ namespace {
 #else
   const std::string MEASUREMENT_TYPE_DEFAULT = "basic";
 #endif
+
+  // CSV operation names are lowercased (e.g. "read"), matching the known
+  // workload ops regardless of the kOperationString case.
+  std::string LowerCase(std::string s) {
+    for (char& c : s) {
+      if (c >= 'A' && c <= 'Z') c += ('a' - 'A');
+    }
+    return s;
+  }
 } // anonymous
 
 namespace ycsbc {
@@ -60,6 +69,19 @@ std::string BasicMeasurements::GetStatusMsg() {
     total_cnt += cnt;
   }
   return std::to_string(total_cnt) + msg_stream.str();
+}
+
+std::vector<OpWindow> BasicMeasurements::GetOpWindows() {
+  std::vector<OpWindow> rows;
+  for (int i = 0; i < MAXOPTYPE; i++) {
+    Operation op = static_cast<Operation>(i);
+    uint64_t cnt = count_[op].load(std::memory_order_relaxed);
+    if (cnt == 0)
+      continue;
+    rows.push_back({LowerCase(kOperationString[op]), cnt,
+                    latency_sum_[op].load(std::memory_order_relaxed)});
+  }
+  return rows;
 }
 
 void BasicMeasurements::Reset() {
@@ -105,6 +127,19 @@ std::string HdrHistogramMeasurements::GetStatusMsg() {
     total_cnt += cnt;
   }
   return std::to_string(total_cnt) + msg_stream.str();
+}
+
+std::vector<OpWindow> HdrHistogramMeasurements::GetOpWindows() {
+  std::vector<OpWindow> rows;
+  for (int i = 0; i < MAXOPTYPE; i++) {
+    Operation op = static_cast<Operation>(i);
+    uint64_t cnt = histogram_[op]->total_count;
+    if (cnt == 0)
+      continue;
+    rows.push_back({LowerCase(kOperationString[op]), cnt,
+                    static_cast<uint64_t>(hdr_mean(histogram_[op]) * cnt)});
+  }
+  return rows;
 }
 
 void HdrHistogramMeasurements::Reset() {

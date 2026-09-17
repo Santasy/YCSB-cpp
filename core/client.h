@@ -14,7 +14,7 @@
 
 #include "core/dataset.h"
 #include "core_workload.h"
-#include "db.h"
+#include "db_database.h"
 #include "utils/countdown_latch.h"
 #include "utils/rate_limit.h"
 #include "utils/utils.h"

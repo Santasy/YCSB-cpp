@@ -9,7 +9,7 @@
 #ifndef YCSB_C_BASIC_DB_H_
 #define YCSB_C_BASIC_DB_H_
 
-#include "db.h"
+#include "db_database.h"
 #include "core/dataset.h"
 #include "utils/properties.h"
 

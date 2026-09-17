@@ -33,6 +33,9 @@ requestdistribution=uniform
 insertorder=hashed
 hashalgo=sha256
 
+# Storage engines only: needs concurrent writers across threads.
+adapter.kinds=db
+
 # Leaves-specific: use confluence for lock-free parallel writes across 8 threads.
 # Higher merge threshold than concurrent_session because writes dominate (90%).
 # Verified 2026-06-09: 5M records, 5M ops, 8 threads, 256GB mapsize:

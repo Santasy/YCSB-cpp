@@ -13,7 +13,7 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
-#include "db.h"
+#include "db_database.h"
 #include "generator.h"
 #include "discrete_generator.h"
 #include "counter_generator.h"

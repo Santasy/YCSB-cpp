@@ -178,38 +178,42 @@
             "preLaunchTask": "Build YCSB Debug"
         },
         {
-            "name": "Debug YCSB - Legacy Workload A (null, Load) [lldb]",
-            "type": "lldb",
+            "name": "Debug YCSB - Legacy Workload A (null, Load) [cppdbg]",
+            "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build-debug-none/ycsb",
+            "program": "${workspaceFolder}/build-debug/ycsb",
             "args": [
                 "-load",
                 "-db",
                 "null",
                 "-P",
                 "workloads/workloada",
-                "-s"
+                "-s",
+                "-p",
+                "resultformat=csv",
+                "-p",
+                "output.file=${workspaceFolder}/storage/out.log",
             ],
             "cwd": "${workspaceFolder}",
-            "env": {},
-            "stopOnEntry": false
         },
         {
-            "name": "Debug YCSB - Legacy Workload A (null, Run) [lldb]",
-            "type": "lldb",
+            "name": "Debug YCSB - Legacy Workload A (null, Run) [cppdbg]",
+            "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build-debug-none/ycsb",
+            "program": "${workspaceFolder}/build-debug/ycsb",
             "args": [
                 "-run",
                 "-db",
-                "btree",
+                "null",
                 "-P",
                 "workloads/workloada",
-                "-s"
+                "-s",
+                "-p",
+                "resultformat=csv",
+                "-p",
+                "output.file=${workspaceFolder}/storage/out.log",
             ],
             "cwd": "${workspaceFolder}",
-            "env": {},
-            "stopOnEntry": false
         },
         {
             "name": "Debug YCSB - Release Build (Leaves Load)",

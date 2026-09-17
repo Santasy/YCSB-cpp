@@ -70,17 +70,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--results-dir",
         default="benchmark_results",
-        help="Directory containing throughput_matrix_*.csv and durability_session_matrix_*.csv",
+        help="Directory containing throughput_matrix_*.csv",
     )
     parser.add_argument(
         "--throughput-csv",
         default=None,
-        help="Path to a throughput_matrix CSV. Defaults to the newest one in results-dir.",
-    )
-    parser.add_argument(
-        "--durability-csv",
-        default=None,
-        help="Path to a durability_session_matrix CSV. Defaults to the newest one in results-dir if present.",
+        help="Path to a throughput_matrix CSV. Defaults to <results-dir>/throughput_matrix.csv.",
     )
     parser.add_argument(
         "--output-dir",
@@ -341,9 +336,12 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    throughput_csv = Path(
-        results_dir, "throughput_matrix.csv" if args.throughput_csv is None else args.throughput_csv)
-    if throughput_csv is None or not throughput_csv.exists():
+    throughput_csv = (
+        Path(args.throughput_csv)
+        if args.throughput_csv is not None
+        else results_dir / "throughput_matrix.csv"
+    )
+    if not throughput_csv.exists():
         raise SystemExit(
             "No throughput_matrix CSV found. Run the benchmark matrix first.")
 
