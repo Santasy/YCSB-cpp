@@ -138,7 +138,7 @@ sudo make install
 
 ### Run All Benchmarks
 ```bash
-./run_all_benchmarks.sh
+./scripts/run_all_benchmarks.sh
 ```
 
 ## Performance Characteristics

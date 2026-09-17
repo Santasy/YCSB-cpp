@@ -34,6 +34,15 @@ These properties control the behavior of the YCSB workload itself.
 | `zipfian_const` | - | Zipfian constant for skewed access (optional) |
 | `readallfields` | `true` | Whether to read all fields (`true`) or one field (`false`) |
 | `writeallfields` | `false` | Whether to write all fields (`true`) or one field (`false`) |
+| `batch_size` | `1` | Number of operations grouped per transaction (Begin/Commit wrapping in the hot loop) |
+
+### Determinism & Dataset Properties
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `seed` | `""` | Reproducible RNG seed. When set, the thread-local RNG and the uniform/scan-length generators are seeded with it; runs with the same `seed` + workload signature produce identical datasets. When empty, non-deterministic defaults apply |
+| `dataset_path` | `.dataset/` | Directory where pre-generated op datasets are stored |
+| `force_generate` | `false` | Regenerate the dataset even if a matching file already exists (its name is a hash of the full workload signature + `seed`) |
 
 ### Scan Properties
 
@@ -48,6 +57,7 @@ These properties control the behavior of the YCSB workload itself.
 | Property | Default | Description |
 |----------|---------|-------------|
 | `insertorder` | `hashed` | Order to insert records: `ordered`, `hashed` |
+| `hashalgo` | `fnv` | Hash algorithm for hashed keys: `fnv`, `sha256` |
 | `insertstart` | `0` | Starting key for inserts |
 | `zeropadding` | `1` | Minimum number of digits for zero-padding keys (e.g., 1 = no padding, 2 = 01, 4 = 0001) |
 
@@ -59,11 +69,14 @@ These properties control the runtime behavior of YCSB-cpp.
 |----------|---------|-------------|
 | `threadcount` | `1` | Number of client threads |
 | `dbname` | `basic` | Database binding to use. (`-db` flag) |
+| `adapter.kinds` | _(any)_ | Comma-separated adapter kinds a workload supports: `db` (storage engines) and/or `ds` (in-memory data structures). Absent/empty = any. The binary fails fast if the selected `-db` kind is not listed. The txn/concurrency workloads set `adapter.kinds=db`. |
 | `status` | `false` | Whether to print status every 10 seconds. (`-s` flag) |
 | `status.interval` | `10` | Status reporting interval in seconds |
 | `sleepafterload` | `0` | Sleep time in seconds after load phase |
 | `doload` | `false` | Whether to run the load phase. (`-load` flag) |
 | `dotransaction` | `false` | Whether to run the transaction phase. (`-run` flag) |
+| `resultformat` | `human` | Output format: `human` (legible lines) or `csv`. `csv` emits headerless per-window series rows: `phase,operation,ops_count,current_size,time_us,maxrss_kb,overhead[,extra...]` (e.g. `run,read,50800,100000,93112.4,385100,9600000`). `operation` is a workload op lowercased or `total`; `time_us` is the window wall-time (µs), `maxrss_kb` is process peak RSS, `overhead` is adapter-reported bytes beyond payload; adapter-specific extra columns append values only (names listed in the container `schema.csv`, written once by the binary next to `output.file`). The `--human` CLI flag forces `human` regardless. |
+| `output.file` | - | If set, *result* lines (human or CSV) are also written to this file (stdout stays live; info chatter is never written here). Missing parent directories are created automatically — enables e.g. `storage/<workload>/<container>/time.<seed>.csv`. In CSV mode stdout is pure CSV: dataset gen/reuse messages and `-s` status go to `stderr`; the binary also writes (once, never overwritten) `schema.csv` with the column names in the same directory. |
 
 ### Rate Limiting Properties
 
@@ -78,7 +91,7 @@ Rate File Format: Each line contains `timestamp_seconds new_ops_per_second`
 
 ### LevelDB Properties
 
-LevelDB properties are prefixed with `leveldb.`. Example configuration file: `adapters/leveldb/leveldb.properties`.
+LevelDB properties are prefixed with `leveldb.`. Example configuration file: `adapters/data-bases/leveldb/leveldb.properties`.
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -98,7 +111,7 @@ LevelDB properties are prefixed with `leveldb.`. Example configuration file: `ad
 
 ### RocksDB Properties
 
-RocksDB properties are prefixed with `rocksdb.`. Example configuration file: `adapters/rocksdb/rocksdb.properties`.
+RocksDB properties are prefixed with `rocksdb.`. Example configuration file: `adapters/data-bases/rocksdb/rocksdb.properties`.
 
 #### Basic Configuration
 
@@ -160,7 +173,7 @@ RocksDB properties are prefixed with `rocksdb.`. Example configuration file: `ad
 
 ### LMDB Properties
 
-LMDB properties are prefixed with `lmdb.`. Example configuration file: `adapters/lmdb/lmdb.properties`.
+LMDB properties are prefixed with `lmdb.`. Example configuration file: `adapters/data-bases/lmdb/lmdb.properties`.
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -176,7 +189,7 @@ LMDB properties are prefixed with `lmdb.`. Example configuration file: `adapters
 
 ### WiredTiger Properties
 
-WiredTiger properties are prefixed with `wiredtiger.`. Example configuration file: `adapters/wiredtiger/wiredtiger.properties`.
+WiredTiger properties are prefixed with `wiredtiger.`. Example configuration file: `adapters/data-bases/wiredtiger/wiredtiger.properties`.
 
 #### Basic Configuration
 
@@ -216,7 +229,7 @@ WiredTiger properties are prefixed with `wiredtiger.`. Example configuration fil
 
 ### Leaves Properties
 
-Leaves properties are prefixed with `leaves.`. Example configuration file: `adapters/leaves/leaves.properties`.
+Leaves properties are prefixed with `leaves.`. Example configuration file: `adapters/data-bases/leaves/leaves.properties`.
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -231,7 +244,7 @@ Leaves properties are prefixed with `leaves.`. Example configuration file: `adap
 
 ### SQLite Properties
 
-SQLite properties are prefixed with `sqlite.`. Example configuration file: `adapters/sqlite/sqlite.properties`.
+SQLite properties are prefixed with `sqlite.`. Example configuration file: `adapters/data-bases/sqlite/sqlite.properties`.
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -242,16 +255,35 @@ SQLite properties are prefixed with `sqlite.`. Example configuration file: `adap
 | `sqlite.synchronous` | `NORMAL` | Synchronous mode: `OFF`, `NORMAL`, `FULL`, `EXTRA` |
 | `sqlite.create_table` | `true` | Create table if not exists |
 
+### Data-Structure Properties (stdlib)
+
+In-memory data-structure adapters (`-db map`) live under `adapters/data-structures/stdlib/` and have
+no persistence: run them as a single `-load -run` invocation so the run phase sees the loaded data.
+They are single-owner and not thread-safe, so the runtime creates one instance, reuses it for both
+phases, and clamps `threadcount` to 1 (with a warning). Workloads that need engine-only features
+declare `adapter.kinds=db`.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `map.clear` | `false` | Start with an empty store on `Init`. Since the one instance is shared across load+run, a run phase after a load phase in the same invocation keeps the loaded data |
+
+Example configuration file: `adapters/data-structures/stdlib/std_map.properties`.
+
 ## Usage Examples
 
 ### Basic Usage
 
 ```bash
 # Load data
-./ycsb -load -db rocksdb -P workloads/workloada -P adapters/rocksdb/rocksdb.properties
+./ycsb -load -db rocksdb -P workloads/workloada -P adapters/data-bases/rocksdb/rocksdb.properties
 
 # Run workload
-./ycsb -run -db rocksdb -P workloads/workloada -P adapters/rocksdb/rocksdb.properties
+./ycsb -run -db rocksdb -P workloads/workloada -P adapters/data-bases/rocksdb/rocksdb.properties
+
+# In-memory data structure (no persistence): load + run in one invocation so the
+# run phase sees the loaded data
+./ycsb -load -run -db map -P workloads/workloada \
+  -P adapters/data-structures/stdlib/std_map.properties -s
 ```
 
 ### Custom Properties
@@ -282,6 +314,14 @@ SQLite properties are prefixed with `sqlite.`. Example configuration file: `adap
 # Enable status reporting every 5 seconds
 ./ycsb -run -db rocksdb -P workloads/workloada \
   -s -p status.interval=5
+
+# Emit a headerless series CSV (per-window rows) + one-time schema.csv into the
+# container folder; host naming describes the collection layout.
+./ycsb -load -run -db map -P workloads/workload_kv_session \
+  -p resultformat=csv -p output.file=storage/workload_kv_session/map/time.12345.csv
+
+# Dataset/status chatter stays on the terminal; stdout/file hold only CSV rows.
+# `--human` forces the legible format back (overrides -p resultformat=csv).
 ```
 
 ## Property File Format
@@ -297,5 +337,5 @@ another.property=another_value
 Load multiple property files:
 
 ```bash
-./ycsb -load -db rocksdb -P workloads/workloada -P adapters/rocksdb/rocksdb.properties -P custom.properties
+./ycsb -load -db rocksdb -P workloads/workloada -P adapters/data-bases/rocksdb/rocksdb.properties -P custom.properties
 ```

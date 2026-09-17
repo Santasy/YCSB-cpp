@@ -17,14 +17,29 @@
 #ifndef YCSB_C_CPPBTREE_DB_H_
 #define YCSB_C_CPPBTREE_DB_H_
 
+#include <functional>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "btree/btree_map.h"
 #include "core/db_interfaces.h"
 #include "utils/properties.h"
 
+// Target bytes per btree node, fixed at compile time so each built executable
+// contains a single btree_map instantiation. Override per build (CMake cache
+// var BTREE_TARGET_NODE_SIZE / -D) to sweep node sizes across binaries.
+#ifndef BTREE_TARGET_NODE_SIZE
+#define BTREE_TARGET_NODE_SIZE 256
+#endif
+
 namespace ycsbc {
+
+using CppBTreeMap =
+    btree::btree_map<std::string, std::string, std::less<std::string>,
+                     std::allocator<std::pair<const std::string, std::string>>,
+                     BTREE_TARGET_NODE_SIZE>;
 
 class CppBTreeDB : public DBInterface {
   public:
@@ -46,7 +61,7 @@ class CppBTreeDB : public DBInterface {
     StoreStats GetStats(const std::string &table) override;
 
   private:
-    btree::btree_map<std::string, std::string> db_;
+    CppBTreeMap db_;
 };
 
 DBInterface *NewCppBTreeDB();

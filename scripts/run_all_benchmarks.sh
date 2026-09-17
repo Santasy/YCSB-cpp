@@ -17,9 +17,13 @@
 
 set -e
 
-YCSB_BIN="./build/ycsb"
-WORKLOADS_DIR="./workloads"
-RESULTS_DIR="./benchmark_results"
+# Resolve the repo root from this script's location so it can be invoked from
+# any cwd; workloads, adapters, results and the binary all live under the root.
+ROOT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+
+YCSB_BIN="$ROOT_DIR/build/ycsb"
+WORKLOADS_DIR="$ROOT_DIR/workloads"
+RESULTS_DIR="$ROOT_DIR/benchmark_results"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 MATRIX_MODE="${MATRIX_MODE:-throughput}"
 LOAD_BATCH_SIZE="${LOAD_BATCH_SIZE:-64}"
@@ -360,7 +364,7 @@ run_benchmark() {
     local repeat_suffix="${5:-}"
 
     local output_file="$RESULTS_DIR/${db}_${scenario}_${workload}_${phase}${repeat_suffix}_${TIMESTAMP}.log"
-    local properties_file="adapters/${db}/${db}.properties"
+    local properties_file="$ROOT_DIR/adapters/${db}/${db}.properties"
     local cmd=()
     local mode_args=()
     local scenario_args=()

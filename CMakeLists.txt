@@ -53,6 +53,8 @@ option(WITH_BZ2 "linking YCSB with bzip2" OFF)
 
 ### Data Structures ###
 option(BIND_BTREE "linking YCSB with cpp-btree" OFF)
+set(BTREE_TARGET_NODE_SIZE 256 CACHE STRING
+    "cpp-btree TargetNodeSize (bytes) compiled into this build; one value per binary")
 
 ### Test ###
 option(YCSB_BUILD_TESTS "build the optional test executables" OFF)
@@ -91,11 +93,15 @@ if (BIND_BTREE)
         ${PROJECT_SOURCE_DIR}/adapters/data-structures/cpp-btree/module-cpp-btree/include)
     file(GLOB YCSB_BTREE_SRC CONFIGURE_DEPENDS "adapters/data-structures/cpp-btree/*.cc")
     target_sources(ycsb_data_structs PRIVATE ${YCSB_BTREE_SRC})
+    # Scope the node-size define to the btree TU only, so reconfiguring with a new
+    # value rebuilds just this source (template instantiation) instead of the whole tree.
+    set_source_files_properties(${YCSB_BTREE_SRC}
+        PROPERTIES COMPILE_DEFINITIONS "BTREE_TARGET_NODE_SIZE=${BTREE_TARGET_NODE_SIZE}")
     if(NOT MSVC)
         # The (old, 2013-era) cpp-btree headers trigger -Wdeprecated-copy under
         # C++20/-Wextra; keep the build output clean without -Werror.
         set_source_files_properties(${YCSB_BTREE_SRC}
-            PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter;-Wno-deprecated-copy")
+            PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-array-bounds")
     endif()
 endif()
 

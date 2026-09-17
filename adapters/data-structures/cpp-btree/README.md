@@ -54,6 +54,6 @@ per-structure columns to the series output / `schema.csv`:
 
 ## Performance Results
 
-See `run_all_benchmarks.sh` / `create_throughput_matrix.py` for comparative
+See `scripts/run_all_benchmarks.sh` / `scripts/create_throughput_matrix.py` for comparative
 throughput. With 100,000 operations, expect faster range/scan and insertion
 than `std::map` due to improved cache locality.

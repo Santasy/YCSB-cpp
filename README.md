@@ -36,11 +36,12 @@ Major refactors were applied to the benchmark framework to address these issues,
 
 * A larger application-oriented workload suite was added under `workloads/workload_kv_*` (session, cache, ingest, analytics read, range, concurrent, ACID, batch variants)
 * Legacy workload names were normalized by renaming `workloads/workload[a-f].spec` to `workloads/workload[a-f]`
-* End-to-end benchmark orchestration and analysis scripts were added:
-    * `run_all_benchmarks.sh`
-    * `create_throughput_matrix.py`
-    * `create_benchmark_graphs.py`
-    * `merge_benchmark_csvs.py`
+* End-to-end benchmark orchestration and analysis scripts were added under `scripts/`:
+    * `scripts/run_all_benchmarks.sh`
+    * `scripts/create_throughput_matrix.py`
+    * `scripts/create_benchmark_graphs.py`
+    * `scripts/merge_benchmark_csvs.py`
+    * `scripts/build_btree_variants.sh` (one `ycsb` binary per cpp-btree `BTREE_TARGET_NODE_SIZE`)
 
 ### Docs, utilities, and tests
 
@@ -177,19 +178,19 @@ The repository includes application-oriented workload files in `workloads/` so t
 Run the multi-database matrix from the repository root:
 
 ```shell
-bash ./run_all_benchmarks.sh
+bash ./scripts/run_all_benchmarks.sh
 ```
 
 Use a smaller scale for a first comparison pass:
 
 ```shell
-EXTRA_PROPERTIES_FILE=./workloads/medium_workload.properties bash ./run_all_benchmarks.sh
+EXTRA_PROPERTIES_FILE=./workloads/medium_workload.properties bash ./scripts/run_all_benchmarks.sh
 ```
 
 Run a durability-oriented matrix with stricter sync settings where supported:
 
 ```shell
-MATRIX_MODE=durability EXTRA_PROPERTIES_FILE=./workloads/medium_workload.properties bash ./run_all_benchmarks.sh
+MATRIX_MODE=durability EXTRA_PROPERTIES_FILE=./workloads/medium_workload.properties bash ./scripts/run_all_benchmarks.sh
 ```
 
 Restrict the run to a subset of databases or workloads:
@@ -198,19 +199,19 @@ Restrict the run to a subset of databases or workloads:
 BENCHMARK_DATABASES="leaves rocksdb lmdb" \
 BENCHMARK_WORKLOADS="workload_kv_session workload_kv_ingest" \
 EXTRA_PROPERTIES_FILE=./workloads/medium_workload.properties \
-bash ./run_all_benchmarks.sh
+bash ./scripts/run_all_benchmarks.sh
 ```
 
 Include Redis as a practical comparator if a local Redis server is available:
 
 ```shell
-INCLUDE_REDIS=1 EXTRA_PROPERTIES_FILE=./workloads/medium_workload.properties bash ./run_all_benchmarks.sh
+INCLUDE_REDIS=1 EXTRA_PROPERTIES_FILE=./workloads/medium_workload.properties bash ./scripts/run_all_benchmarks.sh
 ```
 
 ## Post-processing and graphs
 
-The analysis scripts are plain Python 3. `create_throughput_matrix.py` uses only
-the standard library; `merge_benchmark_csvs.py` and `create_benchmark_graphs.py`
+The analysis scripts are plain Python 3. `scripts/create_throughput_matrix.py` uses only
+the standard library; `scripts/merge_benchmark_csvs.py` and `scripts/create_benchmark_graphs.py`
 need `pandas`, `numpy` and `matplotlib`, which are installed into a repo-local
 virtualenv (`venv/`, git-ignored):
 
@@ -222,7 +223,7 @@ python3 -m venv venv
 Build the throughput matrix from the raw `.log` files:
 
 ```shell
-./venv/bin/python create_throughput_matrix.py --results-dir benchmark_results
+./venv/bin/python scripts/create_throughput_matrix.py --results-dir benchmark_results
 ```
 
 Generate the comparison graphs from a matrix CSV (`--throughput-csv` and other
@@ -230,7 +231,7 @@ paths are resolved relative to the current directory; charts are rendered
 headlessly with `MPLBACKEND=Agg` when no display is available):
 
 ```shell
-MPLBACKEND=Agg ./venv/bin/python create_benchmark_graphs.py \
+MPLBACKEND=Agg ./venv/bin/python scripts/create_benchmark_graphs.py \
     --throughput-csv benchmark_results/throughput_matrix.csv \
     --output-dir benchmark_graphs
 ```
@@ -239,7 +240,7 @@ Merge multiple matrix CSVs, newest data winning on duplicate
 `(scenario, workload, database)` keys:
 
 ```shell
-./venv/bin/python merge_benchmark_csvs.py --input-dir benchmark_results
+./venv/bin/python scripts/merge_benchmark_csvs.py --input-dir benchmark_results
 ```
 
 ## Configuration
