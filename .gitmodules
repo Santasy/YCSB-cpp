@@ -4,3 +4,6 @@
 [submodule "adapters/data-structures/cpp-btree/module-cpp-btree"]
 	path = adapters/data-structures/cpp-btree/module-cpp-btree
 	url = https://github.com/GerHobbelt/cpp-btree.git
+[submodule "adapters/data-structures/wtree/module-wtree"]
+	path = adapters/data-structures/wtree/module-wtree
+	url = https://github.com/Santasy/WTree

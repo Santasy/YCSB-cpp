@@ -1,0 +1,6 @@
+# Submodules / vendored external code (clang-format must not touch these)
+HdrHistogram_c/**
+adapters/data-structures/cpp-btree/module-cpp-btree/**
+
+# Compiler-generated dependency files (Makefile -MD/-MMD output)
+**/*.d
