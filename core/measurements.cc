@@ -6,6 +6,7 @@
 //
 
 #include "measurements.h"
+#include "op_catalog.h"
 #include "utils/utils.h"
 
 #include <limits>
@@ -21,7 +22,7 @@ const std::string MEASUREMENT_TYPE_DEFAULT = "basic";
 #endif
 
 // CSV operation names are lowercased (e.g. "read"), matching the known
-// workload ops regardless of the kOperationString case.
+// workload ops.
 std::string LowerCase(std::string s) {
     for(char &c : s) {
         if(c >= 'A' && c <= 'Z')
@@ -64,7 +65,7 @@ std::string BasicMeasurements::GetStatusMsg() {
         uint64_t cnt = count_[op].load(std::memory_order_relaxed);
         if(cnt == 0)
             continue;
-        msg_stream << " [" << kOperationString[op] << ":"
+        msg_stream << " [" << OpName(op) << ":"
                    << " Count=" << cnt << " Max="
                    << latency_max_[op].load(std::memory_order_relaxed) / 1000.0
                    << " Min="
@@ -88,7 +89,7 @@ std::vector<OpWindow> BasicMeasurements::GetOpWindows() {
         uint64_t cnt = count_[op].load(std::memory_order_relaxed);
         if(cnt == 0)
             continue;
-        rows.push_back({LowerCase(kOperationString[op]), cnt,
+        rows.push_back({LowerCase(std::string(OpName(op))), cnt,
                         latency_sum_[op].load(std::memory_order_relaxed)});
     }
     return rows;
@@ -125,7 +126,7 @@ std::string HdrHistogramMeasurements::GetStatusMsg() {
         uint64_t cnt = histogram_[op]->total_count;
         if(cnt == 0)
             continue;
-        msg_stream << " [" << kOperationString[op] << ":"
+        msg_stream << " [" << OpName(op) << ":"
                    << " Count=" << cnt
                    << " Max=" << hdr_max(histogram_[op]) / 1000.0
                    << " Min=" << hdr_min(histogram_[op]) / 1000.0
@@ -150,7 +151,7 @@ std::vector<OpWindow> HdrHistogramMeasurements::GetOpWindows() {
         uint64_t cnt = histogram_[op]->total_count;
         if(cnt == 0)
             continue;
-        rows.push_back({LowerCase(kOperationString[op]), cnt,
+        rows.push_back({LowerCase(std::string(OpName(op))), cnt,
                         static_cast<uint64_t>(hdr_mean(histogram_[op]) * cnt)});
     }
     return rows;

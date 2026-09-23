@@ -19,9 +19,15 @@
                 "-p",
                 "resultformat=csv",
                 "-p",
-                "output.file=${workspaceFolder}/storage/out.log",
+                "output.file=${workspaceFolder}/storage/out_load.log",
             ],
             "cwd": "${workspaceFolder}",
+            "setupCommands": [
+                {
+                    "text": "set sysroot /",
+                    "ignoreFailures": true,
+                },
+            ]
         },
         {
             "name": "Debug YCSB - Legacy Workload A (null, Run)",
@@ -38,9 +44,15 @@
                 "-p",
                 "resultformat=csv",
                 "-p",
-                "output.file=${workspaceFolder}/storage/out.log",
+                "output.file=${workspaceFolder}/storage/out_run.log",
             ],
             "cwd": "${workspaceFolder}",
+            "setupCommands": [
+                {
+                    "text": "set sysroot /",
+                    "ignoreFailures": true,
+                },
+            ]
         },
         {
             "name": "Debug YCSB - LMDB Workload KV Session",

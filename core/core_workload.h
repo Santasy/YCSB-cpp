@@ -18,6 +18,7 @@
 #include "discrete_generator.h"
 #include "counter_generator.h"
 #include "acknowledged_counter_generator.h"
+#include "op_catalog.h"
 #include "utils/properties.h"
 #include "utils/utils.h"
 #include "utils/fields.h"
@@ -25,27 +26,6 @@
 namespace ycsbc {
 
 class Dataset;
-
-enum Operation {
-    INSERT = 0,
-    READ,
-    UPDATE,
-    SCAN,
-    READMODIFYWRITE,
-    DELETE,
-    BEGIN_TXN,
-    COMMIT_TXN,
-    ROLLBACK_TXN,
-    INSERT_FAILED,
-    READ_FAILED,
-    UPDATE_FAILED,
-    SCAN_FAILED,
-    READMODIFYWRITE_FAILED,
-    DELETE_FAILED,
-    MAXOPTYPE
-};
-
-extern const char *kOperationString[MAXOPTYPE];
 
 class CoreWorkload {
   public:
@@ -205,8 +185,7 @@ class CoreWorkload {
     // Call this from the main thread before timer.Start(); pass the resulting
     // vector to ClientThread so the hot loop only calls DB methods.
     struct WorkItem {
-        enum class OpType { INSERT, UPDATE, READ, SCAN, READMODIFYWRITE };
-        OpType type;
+        Operation type;
         Slice key;
         ReadonlyFields values;
         int scan_len{0};

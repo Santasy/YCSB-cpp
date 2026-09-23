@@ -125,27 +125,7 @@ void Dataset::DEBUG(int op_count) {
         const auto &item = Next();
         const auto &values = item.values;
 
-        std::string type_str;
-        switch(item.type) {
-        case CoreWorkload::WorkItem::OpType::INSERT:
-            type_str = "INSERT";
-            break;
-        case CoreWorkload::WorkItem::OpType::UPDATE:
-            type_str = "UPDATE";
-            break;
-        case CoreWorkload::WorkItem::OpType::READ:
-            type_str = "READ";
-            break;
-        case CoreWorkload::WorkItem::OpType::SCAN:
-            type_str = "SCAN";
-            break;
-        case CoreWorkload::WorkItem::OpType::READMODIFYWRITE:
-            type_str = "READMODIFYWRITE";
-            break;
-        default:
-            type_str = "UNKNOWN";
-            break;
-        }
+        std::string type_str = std::string(OpName(item.type));
 
         std::cout << "Testitem: " << i << ": " << type_str << " "
                   << item.key.size() << " with " << values.size() << " fields"
@@ -173,9 +153,10 @@ void Dataset::DEBUG(int op_count) {
 
 std::string Dataset::GetFullPath(int op_count) const {
     std::stringstream ss;
-    // `v2` invalidates caches produced before the workload-signature hash fix,
-    // so stale .dataset/ files are never silently reused.
-    ss << "v2-" << workload_props_hash_ << "-";
+    // `v3` invalidates caches produced before the operation-enum unification
+    // (WorkItem::OpType → Operation; READ/UPDATE on-disk codes swap), so stale
+    // .dataset/ files are never silently reused.
+    ss << "v3-" << workload_props_hash_ << "-";
     if(is_loading_) {
         ss << "load-";
     } else {
@@ -193,8 +174,7 @@ const CoreWorkload::WorkItem &Dataset::Next() {
         throw utils::Exception("End of dataset");
     }
 
-    current_work_item_.type =
-        static_cast<CoreWorkload::WorkItem::OpType>(*current_);
+    current_work_item_.type = static_cast<Operation>(*current_);
     current_++;
 
     uint64_t meta_len = *reinterpret_cast<uint64_t *>(current_);
@@ -212,17 +192,15 @@ const CoreWorkload::WorkItem &Dataset::Next() {
     const char *op_specific_data_ptr =
         reinterpret_cast<const char *>(map_) + meta->op_specific_data_offset;
 
-    switch(current_work_item_.type) {
-    case CoreWorkload::WorkItem::OpType::INSERT:
-    case CoreWorkload::WorkItem::OpType::UPDATE:
-    case CoreWorkload::WorkItem::OpType::READMODIFYWRITE: {
+    switch(OpDefOf(current_work_item_.type).payload) {
+    case PayloadKind::FIELDS: {
         uint32_t fields_size =
             *reinterpret_cast<const uint32_t *>(op_specific_data_ptr);
         current_work_item_.values = ReadonlyFields(
             op_specific_data_ptr + sizeof(uint32_t), fields_size);
         break;
     }
-    case CoreWorkload::WorkItem::OpType::SCAN: {
+    case PayloadKind::SCAN_LEN: {
         current_work_item_.scan_len =
             *reinterpret_cast<const uint32_t *>(op_specific_data_ptr);
         break;

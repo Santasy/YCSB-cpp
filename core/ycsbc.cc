@@ -6,30 +6,12 @@
 //  Copyright (c) 2014 Jinglei Ren <jinglei@ren.systems>.
 //
 
-#include <chrono>
-#include <cstring>
-#include <ctime>
-#include <fstream>
-#include <future>
-#include <iomanip>
-#include <iostream>
-#include <memory>
-#include <ostream>
-#include <sstream>
-#include <string>
-#include <thread>
-#include <vector>
-
-#include "dataset.h"
-#include "output.h"
-#include "core_workload.h"
-#include "client.h"
-#include "db_factory.h"
-#include "measurements.h"
+#include "ycsbc.h"
+#include "core/client.h"
 #include "utils/countdown_latch.h"
-#include "utils/rate_limit.h"
-#include "utils/timer.h"
-#include "utils/utils.h"
+
+#include <future>
+#include <thread>
 
 void UsageMessage(const char *command);
 bool StrStartWith(const char *str, const char *pre);
@@ -157,7 +139,7 @@ int main(const int argc, const char *argv[]) {
     if(is_data_structure) {
         shared_db = ycsbc::DBFactory::CreateDB(&props, measurements);
         if(shared_db == nullptr) {
-            std::cerr << "Unknown database name " << db_name << std::endl;
+            std::cerr << "Unknown data-structure name " << db_name << std::endl;
             exit(1);
         }
         shared_db->Init();
@@ -165,82 +147,11 @@ int main(const int argc, const char *argv[]) {
 
     // load phase
     if(do_load) {
-        const int total_ops =
-            stoi(props[ycsbc::CoreWorkload::RECORD_COUNT_PROPERTY]);
-
-        // Pre-generate all keys and values outside the timed window so the
-        // measurement reflects DB cost, not YCSB framework cost (BuildKeyName,
-        // BuildValues, RNG, ...).
-        ycsbc::Dataset load_dataset(props, wl, 0, true);
-        const bool force_generate = ycsbc::utils::StrToBool(
-            props.GetProperty("force_generate", "false"));
-        const std::string load_dataset_path =
-            load_dataset.GetFullPath(total_ops);
-        bool should_generate = false;
-        std::string reason;
-        if(force_generate) {
-            should_generate = true;
-            reason = "force_generate=true";
-        } else {
-            struct stat buffer;
-            if(stat(load_dataset_path.c_str(), &buffer) != 0) {
-                should_generate = true;
-                reason = "dataset file missing";
-            } else if(!load_dataset.IsValidForOpCount(total_ops)) {
-                should_generate = true;
-                reason = "dataset header count mismatch";
-            }
-        }
-
-        if(should_generate) {
-            info_os << "Generating load dataset: " << reason << " ("
-                    << load_dataset_path << ")" << std::endl;
-            load_dataset.Generate(total_ops);
-        } else {
-            info_os << "Reusing existing load dataset: " << load_dataset_path
-                    << std::endl;
-        }
-        load_dataset.Open(total_ops);
-
-        ycsbc::utils::Timer<double> timer;
-
-        // Use a dedicated DB instance for the load phase, or the shared
-        // data-structure instance so the run phase still sees the loaded data.
-        ycsbc::DB *load_db = shared_db;
-        if(load_db == nullptr) {
-            load_db = ycsbc::DBFactory::CreateDB(&props, measurements);
-            if(load_db == nullptr) {
-                std::cerr << "Unknown database name " << db_name << std::endl;
-                exit(1);
-            }
-            load_db->Init();
-        }
-
-        const std::string &table = wl.table_name();
-
-        timer.Start();
-        load_db->Load(table, load_dataset);
-        double runtime = timer.End();
-
-        if(csv_mode) {
-            // Bulk load is measured as a single window (operation `total`).
-            const ycsbc::DB::StoreStats stats = load_db->GetStats(table);
-            ycsbc::EmitSeriesRow(*result_out, "load", "total", total_ops,
-                                 stats.current_size, runtime * 1e6,
-                                 ycsbc::CurrentMaxRssKb(), stats.overhead_bytes,
-                                 stats.extra);
-            ycsbc::CollectSchemaCols(schema_extra_cols, stats.extra);
-        } else {
-            *result_out << "Load runtime(sec): " << runtime << std::endl;
-            *result_out << "Load operations(ops): " << total_ops << std::endl;
-            *result_out << "Load throughput(ops/sec): " << total_ops / runtime
-                        << std::endl;
-        }
-
-        if(load_db != shared_db) {
-            load_db->Cleanup();
-            delete load_db;
-        }
+        bool correct_load = ycsbc::Pipeline::StepLoad(
+            props, wl, db_name, shared_db, schema_extra_cols, measurements,
+            result_out, info_os, csv_mode);
+        if(!correct_load)
+            exit(EXIT_FAILURE);
     }
 
     measurements->Reset();

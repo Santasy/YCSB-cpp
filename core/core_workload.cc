@@ -38,16 +38,6 @@ static thread_local std::unordered_set<std::string> tl_fields_buffer;
 static thread_local std::vector<ycsbc::Fields> tl_scan_result_buffer;
 static thread_local ycsbc::RandomByteGenerator tl_byte_generator;
 
-const char *ycsbc::kOperationString[ycsbc::MAXOPTYPE] = {
-    "INSERT",          "READ",
-    "UPDATE",          "SCAN",
-    "READMODIFYWRITE", "DELETE",
-    "BEGIN_TXN",       "COMMIT_TXN",
-    "ROLLBACK_TXN",    "INSERT-FAILED",
-    "READ-FAILED",     "UPDATE-FAILED",
-    "SCAN-FAILED",     "READMODIFYWRITE-FAILED",
-    "DELETE-FAILED"};
-
 const string CoreWorkload::TABLENAME_PROPERTY = "table";
 const string CoreWorkload::TABLENAME_DEFAULT = "usertable";
 
@@ -533,78 +523,37 @@ DB::Status CoreWorkload::TransactionInsert(DB &db) {
 
 void CoreWorkload::PrepareOpsForFile(std::ofstream &ofs, int n,
                                      bool is_loading) {
-    struct WorkItemLocal {
-        WorkItem::OpType type;
-        std::string key;
-        Fields values;
-        int scan_len{0};
+    // Abstract the workload's generators so the per-op generation logic lives
+    // in op_catalog.cc (single source of truth, no per-op switch here).
+    GenContext ctx;
+    ctx.write_all_fields = write_all_fields_;
+    ctx.next_txn_key_num = [this]() { return NextTransactionKeyNum(); };
+    ctx.build_key = [this](uint64_t key_num) { return BuildKeyName(key_num); };
+    ctx.next_scan_len = [this]() { return scan_len_chooser_->Next(); };
+    ctx.build_values_all = [this](Fields &values) { BuildValues(values); };
+    ctx.build_values_single = [this](Fields &values) {
+        BuildSingleValue(values);
     };
+    if(is_loading) {
+        ctx.next_insert_key = [this]() { return insert_key_sequence_->Next(); };
+        ctx.ack_insert_key = [](uint64_t) {};
+    } else {
+        ctx.next_insert_key = [this]() {
+            return transaction_insert_key_sequence_->Next();
+        };
+        ctx.ack_insert_key = [this](uint64_t key_num) {
+            transaction_insert_key_sequence_->Acknowledge(key_num);
+        };
+    }
 
-    WorkItemLocal item;
+    GeneratedOp item;
     for(int i = 0; i < n; ++i) {
-        if(is_loading) {
-            item.type = WorkItem::OpType::INSERT;
-            item.key = BuildKeyName(insert_key_sequence_->Next());
-            BuildValues(item.values);
-        } else {
-            switch(op_chooser_.Next()) {
-            case READ:
-                item.type = WorkItem::OpType::READ;
-                item.key = BuildKeyName(NextTransactionKeyNum());
-                item.values.clear();
-                break;
-            case UPDATE:
-                item.type = WorkItem::OpType::UPDATE;
-                item.key = BuildKeyName(NextTransactionKeyNum());
-                if(write_all_fields_)
-                    BuildValues(item.values);
-                else
-                    BuildSingleValue(item.values);
-                break;
-            case INSERT: {
-                item.type = WorkItem::OpType::INSERT;
-                uint64_t key_num = transaction_insert_key_sequence_->Next();
-                item.key = BuildKeyName(key_num);
-                BuildValues(item.values);
-                transaction_insert_key_sequence_->Acknowledge(key_num);
-                break;
-            }
-            case SCAN:
-                item.type = WorkItem::OpType::SCAN;
-                item.key = BuildKeyName(NextTransactionKeyNum());
-                item.scan_len = scan_len_chooser_->Next();
-                item.values.clear();
-                break;
-            case READMODIFYWRITE:
-                item.type = WorkItem::OpType::READMODIFYWRITE;
-                item.key = BuildKeyName(NextTransactionKeyNum());
-                if(write_all_fields_)
-                    BuildValues(item.values);
-                else
-                    BuildSingleValue(item.values);
-                break;
-            default:
-                throw utils::Exception("Operation request is not recognized!");
-            }
-        }
+        const Operation op =
+            is_loading ? Operation::INSERT : op_chooser_.Next();
+        GenerateOp(op, ctx, item);
 
         uint32_t key_len = item.key.length();
-        uint32_t op_specific_data_len = 0;
-        switch(item.type) {
-        case WorkItem::OpType::INSERT:
-        case WorkItem::OpType::UPDATE:
-        case WorkItem::OpType::READMODIFYWRITE: {
-            const std::string &buffer = item.values.buffer();
-            op_specific_data_len += sizeof(uint32_t) + buffer.size();
-            break;
-        }
-        case WorkItem::OpType::SCAN: {
-            op_specific_data_len += sizeof(uint32_t);
-            break;
-        }
-        default:
-            break;
-        }
+        uint32_t op_specific_data_len = OpPayloadSize(item);
 
         Meta meta;
         meta.key_offset = ofs.tellp();
@@ -622,10 +571,8 @@ void CoreWorkload::PrepareOpsForFile(std::ofstream &ofs, int n,
         ofs.write(reinterpret_cast<const char *>(&key_len), sizeof(key_len));
         ofs.write(item.key.data(), key_len);
 
-        switch(item.type) {
-        case WorkItem::OpType::INSERT:
-        case WorkItem::OpType::UPDATE:
-        case WorkItem::OpType::READMODIFYWRITE: {
+        switch(OpDefOf(item.type).payload) {
+        case PayloadKind::FIELDS: {
             const std::string &buffer = item.values.buffer();
             uint32_t fields_size = buffer.size();
             ofs.write(reinterpret_cast<const char *>(&fields_size),
@@ -633,7 +580,7 @@ void CoreWorkload::PrepareOpsForFile(std::ofstream &ofs, int n,
             ofs.write(buffer.data(), fields_size);
             break;
         }
-        case WorkItem::OpType::SCAN: {
+        case PayloadKind::SCAN_LEN: {
             ofs.write(reinterpret_cast<const char *>(&item.scan_len),
                       sizeof(item.scan_len));
             break;

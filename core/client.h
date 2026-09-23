@@ -89,26 +89,30 @@ inline int ClientThread(ycsbc::DB *db, CoreWorkload *wl, const int num_ops,
                 const auto &values = item.values;
 
                 switch(item.type) {
-                case CoreWorkload::WorkItem::OpType::INSERT:
+                case Operation::INSERT:
                     db->Insert(table, item.key, values);
                     break;
-                case CoreWorkload::WorkItem::OpType::UPDATE:
+                case Operation::UPDATE:
                     db->Update(table, item.key, values);
                     break;
-                case CoreWorkload::WorkItem::OpType::READ:
+                case Operation::READ:
                     result_buf.clear();
                     db->Read(table, item.key, nullptr, result_buf);
                     break;
-                case CoreWorkload::WorkItem::OpType::SCAN:
+                case Operation::SCAN:
                     scan_result_buf.clear();
                     db->Scan(table, item.key, item.scan_len, nullptr,
                              scan_result_buf);
                     break;
-                case CoreWorkload::WorkItem::OpType::READMODIFYWRITE:
+                case Operation::READMODIFYWRITE:
                     result_buf.clear();
                     db->Read(table, item.key, nullptr, result_buf, true);
                     db->Update(table, item.key, item.values);
                     break;
+                default:
+                    std::cerr << "[WARNING] Operation is not handled: "
+                              << OpName(item.type) << std::endl;
+                    assert(false);
                 }
                 ops++;
             }
