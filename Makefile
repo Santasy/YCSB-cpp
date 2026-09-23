@@ -63,11 +63,18 @@ endif
 
 CXXFLAGS += -std=c++20 -Wall -pthread $(EXTRA_CXXFLAGS) -I./
 CXXFLAGS += -Iadapters/data-structures/cpp-btree/module-cpp-btree/include
+CXXFLAGS += -Iadapters/data-structures/wtree/module-wtree/include
 LDFLAGS += $(EXTRA_LDFLAGS) -lpthread
 SOURCES += $(wildcard adapters/null/*.cc)
 SOURCES += $(wildcard adapters/data-structures/stdlib/*.cc)
 SOURCES += $(wildcard adapters/data-structures/cpp-btree/*.cc)
+SOURCES += $(wildcard adapters/data-structures/wtree/*.cc)
 SOURCES += $(wildcard core/*.cc)
+
+# The WTree node/get-stats headers trip -Warray-bounds / -Wstringop-overflow /
+# -Wmaybe-uninitialized (GCC forensics on the flexible-array layout); keep the
+# build output clean.
+adapters/data-structures/wtree/%.o: CXXFLAGS += -Wno-array-bounds -Wno-stringop-overflow -Wno-maybe-uninitialized
 
 # sha256 (utils) is compiled from a dedicated .cpp, not .cc, so it must not
 # flow through the .cc->.d dependency globbing above. Track its .o directly.

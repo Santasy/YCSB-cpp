@@ -30,6 +30,7 @@ for n in $BTREE_NODE_SIZES; do
 	cmake --build "$BUILD_DIR" -j"$(nproc)"
 	cp "$BUILD_DIR/ycsb" "$COLLECT_DIR/ycsb-bt-${n}"
 done
+rm -r "$BUILD_DIR"
 
 echo "=== Built variants ==="
 ls -l "$COLLECT_DIR"/ycsb-bt-*

@@ -55,6 +55,10 @@ option(WITH_BZ2 "linking YCSB with bzip2" OFF)
 option(BIND_BTREE "linking YCSB with cpp-btree" OFF)
 set(BTREE_TARGET_NODE_SIZE 256 CACHE STRING
     "cpp-btree TargetNodeSize (bytes) compiled into this build; one value per binary")
+    
+option(BIND_WTREE "linking YCSB with WTree" OFF)
+set(WTREE_TARGET_NODE_BYTES 512 CACHE STRING
+    "WTree target node bytes compiled into this build; one value per binary")
 
 ### Test ###
 option(YCSB_BUILD_TESTS "build the optional test executables" OFF)
@@ -80,8 +84,9 @@ target_include_directories(ycsb_core PUBLIC ${PROJECT_SOURCE_DIR})
 # ycsb_data_structs: OBJECT target holding all data-structure adapter sources
 # (e.g. std::map / std::set). They have no external deps, so they are always
 # compiled (the "map" backend is in-memory only). stdlib is globbed
-# recursively; cpp-btree is opt-in via BIND_BTREE and globbed only at the top
-# level so the module subdir's own (test) sources are not pulled in.
+# recursively; cpp-btree and WTree are opt-in via BIND_BTREE / BIND_WTREE and
+# globbed only at the top level so each module subdir's own (test) sources are
+# not pulled in.
 file(GLOB_RECURSE YCSB_STDMAP_SRC CONFIGURE_DEPENDS "adapters/data-structures/stdlib/*.cc")
 add_library(ycsb_data_structs OBJECT ${YCSB_STDMAP_SRC})
 target_include_directories(ycsb_data_structs PUBLIC ${PROJECT_SOURCE_DIR})
@@ -102,6 +107,32 @@ if (BIND_BTREE)
         # C++20/-Wextra; keep the build output clean without -Werror.
         set_source_files_properties(${YCSB_BTREE_SRC}
             PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-array-bounds")
+    endif()
+endif()
+
+if (BIND_WTREE)
+    message(STATUS "BIND_WTREE - ON")
+    # WTree is a header-only library under its submodule include root.
+    target_include_directories(ycsb_data_structs PUBLIC
+        ${PROJECT_SOURCE_DIR}/adapters/data-structures/wtree/module-wtree/include)
+    file(GLOB YCSB_WTREE_SRC CONFIGURE_DEPENDS "adapters/data-structures/wtree/*.cc")
+    target_sources(ycsb_data_structs PRIVATE ${YCSB_WTREE_SRC})
+    # Scope the node-size define to the wtree TU only, so reconfiguring with a new
+    # value rebuilds just this source (template instantiation) instead of the whole tree.
+    set_source_files_properties(${YCSB_WTREE_SRC}
+        PROPERTIES COMPILE_DEFINITIONS "WTREE_TARGET_NODE_BYTES=${WTREE_TARGET_NODE_BYTES}")
+    if(NOT MSVC)
+        # The WTree node/get-stats headers trip GCC's -Warray-bounds /
+        # -Wstringop-overflow / -Wmaybe-uninitialized forensics on the flexible
+        # array layout (the latter two are GCC-only); keep the build output
+        # clean without -Werror.
+        set(WTREE_COMPILE_OPTIONS "-Wno-unused-parameter;-Wno-array-bounds")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            list(APPEND WTREE_COMPILE_OPTIONS
+                 "-Wno-stringop-overflow;-Wno-maybe-uninitialized")
+        endif()
+        set_source_files_properties(${YCSB_WTREE_SRC}
+            PROPERTIES COMPILE_OPTIONS "${WTREE_COMPILE_OPTIONS}")
     endif()
 endif()
 

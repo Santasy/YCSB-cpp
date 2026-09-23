@@ -86,13 +86,14 @@
         {
             "name": "debug-ds",
             "displayName": "Debug - Only data-strucs",
-            "description": "Debug build with core + null + data-structure adapters (btree opt-in via -DBIND_BTREE=ON)",
+            "description": "Debug build with core + null + data-structure adapters (btree/wtree opt-in)",
             "binaryDir": "${sourceDir}/build-dbg-ds",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "WITH_ZLIB": "ON",
-                "BIND_BTREE": "ON"
+                "BIND_BTREE": "ON",
+                "BIND_WTREE": "ON"
             }
         },
         {

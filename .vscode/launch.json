@@ -12,9 +12,9 @@
             "args": [
                 "-load",
                 "-db",
-                "map",
+                "wtree",
                 "-P",
-                "workloads/workloada",
+                "workloads/workload_kv_ingest",
                 "-s",
                 "-p",
                 "resultformat=csv",
@@ -31,9 +31,9 @@
             "args": [
                 "-run",
                 "-db",
-                "map",
+                "wtree",
                 "-P",
-                "workloads/workloada",
+                "workloads/workload_kv_ingest",
                 "-s",
                 "-p",
                 "resultformat=csv",
