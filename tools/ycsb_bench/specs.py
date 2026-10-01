@@ -4,16 +4,20 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from .benchgrid_bridge import ROOT
+from .naming import variant_label
+from .paths import ROOT
+
+__all__ = [
+    "DEFAULT_NODE_SIZES",
+    "TreeSpec",
+    "binary_dir",
+    "binary_path",
+    "tree_specs",
+    "variant_label",
+    "variants_for",
+]
 
 DEFAULT_NODE_SIZES = (256, 512, 1024, 2048, 4096, 8192, 16384)
-
-
-def root_path(value: str | Path) -> Path:
-    path = Path(value).expanduser()
-    if not path.is_absolute():
-        path = ROOT / path
-    return path.resolve()
 
 
 @dataclass(frozen=True)
@@ -83,7 +87,3 @@ def variants_for(spec: TreeSpec, node_sizes: Sequence[int]) -> tuple[int | None,
     if spec.node_env is None:
         return (None,)
     return tuple(node_sizes)
-
-
-def variant_label(node_size: int | None) -> str:
-    return str(node_size) if node_size is not None else "default"

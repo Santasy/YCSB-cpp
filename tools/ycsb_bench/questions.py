@@ -1,6 +1,5 @@
 """
-Headless questions over a YCSB result tree, on the shared ``build_dataset``
-chain.
+Headless questions over a result tree of the run phase.
 
 The same scan, schema, normalization and engine queries the plot viewer uses,
 answered in the terminal: for one measure of one workload, a structure × target
@@ -10,8 +9,8 @@ the workload is always an explicit choice rather than something averaged away.
 
 Run:
 
-    .cache/plot-venv/bin/python -m ycsb_bench.analysis.cli --data-dir <root>
-    .cache/plot-venv/bin/python -m ycsb_bench.analysis.cli \\
+    .cache/plot-venv/bin/python -m ycsb_bench.questions --data-dir <root>
+    .cache/plot-venv/bin/python -m ycsb_bench.questions \\
         --data-dir <root> --workload workload_kv_session --measure run:read
 """
 
@@ -69,7 +68,7 @@ def _parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=OUTPUT_DIR,
-        help="where to write the CSV tables (default: the analysis output dir)",
+        help="where to write the CSV tables (default: the package output dir)",
     )
     return parser.parse_args()
 

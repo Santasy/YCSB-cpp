@@ -4,8 +4,9 @@ import shlex
 from collections.abc import Sequence
 from pathlib import Path
 
-from .benchgrid_bridge import ArgsJoinPolicy, CommandPool, WorkCommand, WorkPlan
-from .benchgrid_bridge import ROOT
+from benchgrid import ArgsJoinPolicy, CommandPool, WorkCommand, WorkPlan
+
+from .paths import ROOT
 from .specs import TreeSpec, binary_dir
 
 ENV_PASSTHROUGH = 'for arg in "$@"; do export "$arg"; done; '

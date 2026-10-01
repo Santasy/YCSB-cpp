@@ -1,5 +1,5 @@
 """
-Headless verification of the YCSB-cpp analysis layer (no streamlit).
+Headless verification of the YCSB-cpp read end (no streamlit).
 
 Builds a small synthetic result tree under ``.cache/`` with the shapes the real
 runner produces — 10-field BTree/WTree rows next to 7-field ``std::map`` rows, a
@@ -20,9 +20,17 @@ import polars as pl
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # tools/
 
-from ycsb_bench.analysis import cli as analysis_cli  # noqa: E402
-from ycsb_bench.analysis.bridge import read_schemas, scan_csv_lazy  # noqa: E402
-from ycsb_bench.analysis.dataset import (  # noqa: E402
+import ycsb_bench  # noqa: E402, F401 — puts the BenchGrid checkout on sys.path
+from benchgrid import read_schemas, scan_csv_lazy  # noqa: E402
+from ycsb_bench import questions as questions_cli  # noqa: E402
+from ycsb_bench.adapter import BEST_DIRECTION, DIMS  # noqa: E402
+from ycsb_bench.app import TABS  # noqa: E402
+from ycsb_bench.curves import (  # noqa: E402
+    GROWTH_BEST,
+    GROWTH_PER_TARGET,
+    TRADEOFF,
+)
+from ycsb_bench.dataset import (  # noqa: E402
     ALL_METRICS,
     DEFAULT_MEASURE,
     MEASURE_KEY,
@@ -36,11 +44,19 @@ from ycsb_bench.analysis.dataset import (  # noqa: E402
     build_dataset,
     narrow,
 )
-from ycsb_bench.analysis.enrich import enrich_series  # noqa: E402
-from ycsb_bench.analysis.paths import SCHEMA_FILE, data_dirs  # noqa: E402
+from ycsb_bench.enrich import enrich_series  # noqa: E402
+from ycsb_bench.paths import SCHEMA_FILE, data_dirs  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[3]  # repo root
 TREE = ROOT / ".cache" / "ycsb_plot_check" / "results"
+
+#: What the viewer must show, mirrored by the streamlit check.
+TAB_LABELS = [
+    "Metrics",
+    "Growth — best target size",
+    "Growth — per target size",
+    "Trade-off — time vs memory",
+]
 
 #: (struct_version, node_size, run_id suffix) → extra structure fields per row.
 TREE_LAYOUT = [
@@ -83,6 +99,32 @@ def _check(condition: bool, message: str) -> None:
     if not condition:
         raise SystemExit(f"FAIL: {message}")
     print(f"  ok  {message}")
+
+
+def _declarations() -> None:
+    """The plot declarations: sidebar filters, cost direction, tabs, view specs."""
+    print("declarations")
+    _check(
+        set(DIMS)
+        == {"workload", "struct_version", "node_size", "insert_order", "hash_algo"},
+        f"sidebar filters: {DIMS}",
+    )
+    _check(
+        not BEST_DIRECTION,
+        "every metric is a cost, so the viewer has no better-is-higher metric",
+    )
+    _check(
+        [tab.label for tab in TABS] == TAB_LABELS,
+        f"tabs declared: {[tab.label for tab in TABS]}",
+    )
+    _check(
+        GROWTH_BEST.select_best == NODE_BYTES
+        and GROWTH_PER_TARGET.select_best is None
+        and TRADEOFF.x_metric == "overhead_per_key"
+        and TRADEOFF.y_metric == "time_ms",
+        "one growth view picks the best target size, the other draws every "
+        "size, and the trade-off pairs time with overhead",
+    )
 
 
 def main() -> None:
@@ -147,14 +189,14 @@ def main() -> None:
     _check(
         abs(read_row["us_per_op"] - 26048 / 44) < 1e-6
         and abs(read_row["ops_per_sec"] - 44 * 1e6 / 26048) < 1e-3
-        and read_row["bytes_per_key"] == 8,
+        and read_row["overhead_per_key"] == 8,
         "derived per-op / throughput / per-key metrics",
     )
     std_row = frame.filter(pl.col("struct_symbol") == "std").row(0, named=True)
     _check(
         std_row["height"] is None
         and std_row["keys_per_leaf"] is None
-        and std_row["bytes_per_key"] == 8,
+        and std_row["overhead_per_key"] == 8,
         "structure metrics are null, cost metrics still computed",
     )
 
@@ -194,7 +236,7 @@ def main() -> None:
     )
     aggregated = totals.aggregate(SOURCE, [NODE_BYTES], "us_per_op", "mean")
     _check(aggregated.height == 4, "one aggregated row per target node size")
-    matrix = totals.matrix(SOURCE, analysis_cli.ROW_KEY, NODE_BYTES, "us_per_op", "mean")
+    matrix = totals.matrix(SOURCE, questions_cli.ROW_KEY, NODE_BYTES, "us_per_op", "mean")
     _check(
         sorted(matrix.row_values()) == ["btree", "std", "wtree-simple", "wtree-split"],
         "matrix rows are the structure variants",
@@ -205,10 +247,12 @@ def main() -> None:
     )
     print("\n" + matrix.to_text())
 
+    _declarations()
+
     print("configuration")
     _check(data_dirs() == data_dirs(), "configured roots resolve")
 
-    print("\nanalysis check ok")
+    print("\nread-end check ok")
 
 
 if __name__ == "__main__":

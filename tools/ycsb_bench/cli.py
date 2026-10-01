@@ -6,17 +6,18 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from .benchgrid_bridge import available_cpus, resolve_thread_count
+from benchgrid import available_cpus, resolve_thread_count
+
 from .builds import build_plan, build_pool
+from .naming import BUILD_DIR, DATASETS_DIR, LOGS_DIR, variant_label
+from .paths import DEFAULT_OUTPUT_DIR, root_path
 from .runs import dimensions, make_targets, run_plan, run_pool
 from .specs import (
     DEFAULT_NODE_SIZES,
     TreeSpec,
     binary_path,
-    root_path,
     tree_specs,
     variants_for,
-    variant_label,
 )
 from .workloads import select_workloads
 
@@ -93,7 +94,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--extra-properties", action="append", default=[])
     parser.add_argument("--result-format", choices=("csv", "human"), default="csv")
     parser.add_argument("--no-status", action="store_true")
-    parser.add_argument("--output-dir", default=".cache/run_all_workloads")
+    parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
     parser.add_argument("--dataset-dir")
     parser.add_argument("--binary-root", default=".")
     parser.add_argument(
@@ -145,8 +146,8 @@ def _prepare_directories(
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     dataset_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "logs").mkdir(parents=True, exist_ok=True)
-    (output_dir / "build").mkdir(parents=True, exist_ok=True)
+    (output_dir / LOGS_DIR).mkdir(parents=True, exist_ok=True)
+    (output_dir / BUILD_DIR).mkdir(parents=True, exist_ok=True)
     for spec, variants in build_matrix:
         for node_size in variants:
             for target in make_targets(
@@ -171,7 +172,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         seeds = unique(seed_values)
         output_dir = root_path(args.output_dir)
         dataset_dir = (
-            root_path(args.dataset_dir) if args.dataset_dir else output_dir / "datasets"
+            root_path(args.dataset_dir)
+            if args.dataset_dir
+            else output_dir / DATASETS_DIR
         )
         binary_root = root_path(args.binary_root)
         workload_dir = root_path(args.workload_dir)

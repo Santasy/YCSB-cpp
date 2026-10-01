@@ -5,10 +5,18 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from .benchgrid_bridge import ArgsJoinPolicy, CommandPool, IterationPolicy, WorkCommand
-from .benchgrid_bridge import WorkPlan, WorkRecord
-from .benchgrid_bridge import ROOT
-from .specs import TreeSpec, binary_path, variant_label
+from benchgrid import (
+    ArgsJoinPolicy,
+    CommandPool,
+    IterationPolicy,
+    WorkCommand,
+    WorkPlan,
+    WorkRecord,
+)
+
+from .naming import LOGS_DIR, RESULTS_DIR, run_name, structure_folder, variant_label
+from .paths import ROOT
+from .specs import TreeSpec, binary_path
 
 FREEZE_KEY = "SEED"
 
@@ -39,13 +47,6 @@ def dimensions(
     ]
 
 
-def _slug(value: str) -> str:
-    return "".join(
-        character if character.isalnum() or character in "-_" else "_"
-        for character in value
-    )
-
-
 def make_targets(
     spec: TreeSpec,
     node_size: int | None,
@@ -59,17 +60,12 @@ def make_targets(
     targets: list[RunTarget] = []
     for workload in workloads:
         for insert_order, hash_algo, seed in grid:
-            name_parts = [workload.name]
-            if insert_order is not None:
-                name_parts.append(insert_order)
-            if hash_algo is not None:
-                name_parts.append(hash_algo)
-            name_parts.append(f"seed-{seed}")
-            name = _slug("-".join(name_parts))
-            variant = variant_label(node_size)
-            result = output_dir / "results" / spec.name / variant / f"{name}.csv"
-            target_dataset = dataset_dir / spec.name / variant / name
-            log = output_dir / "logs" / f"{spec.name}-{variant}-{name}.log"
+            name = run_name(workload.name, insert_order, hash_algo, seed)
+            structure = structure_folder(spec.name)
+            folder = variant_label(node_size)
+            result = output_dir / RESULTS_DIR / structure / folder / f"{name}.csv"
+            target_dataset = dataset_dir / structure / folder / name
+            log = output_dir / LOGS_DIR / f"{structure}-{folder}-{name}.log"
             targets.append(
                 RunTarget(
                     workload=workload,

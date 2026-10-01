@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from .bridge import Dataset, ScanSchema, read_schemas, scan_csv_lazy
+from benchgrid import Dataset, read_schemas, scan_csv_lazy
+from benchgrid.schema import ScanSchema
+
 from .enrich import enrich_series
 from .paths import SCHEMA_FILE
 from .paths import data_dirs as configured_data_dirs
@@ -71,8 +73,8 @@ SERIES_METRICS: list[str] = [
     "us_per_op",
     "ops_per_sec",
     "overhead_per_key",
-    # "bytes_per_node",
-    # "keys_per_leaf",
+    "bytes_per_node",
+    "keys_per_leaf",
     "rss_mb",
 ]
 
@@ -84,10 +86,10 @@ ALL_METRICS: list[str] = [
     "time_us",
     "overhead",
     "overhead_per_key",
-    # "bytes_per_node",
+    "bytes_per_node",
     "rss_mb",
     "height",
-    # "keys_per_leaf",
+    "keys_per_leaf",
     "node_count",
     "ops_count",
 ]

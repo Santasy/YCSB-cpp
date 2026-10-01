@@ -4,7 +4,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from .benchgrid_bridge import ROOT
+from .paths import ROOT
 
 DATA_STRUCTURE_KINDS = frozenset({"ds", "datastructure"})
 

@@ -14,7 +14,9 @@ structure's cost and footprint move as its population grows.
 
 from __future__ import annotations
 
-from .bridge import CurvePlotSpec, PairPlotSpec
+from benchgrid.plots.curves import CurvePlotSpec
+from benchgrid.plots.pairs import PairPlotSpec
+
 from .dataset import MEASURE_KEY, NODE_BYTES, PROGRESS_KEY, SOURCE
 
 #: Case A — one curve per (structure, version); each size is the best value of

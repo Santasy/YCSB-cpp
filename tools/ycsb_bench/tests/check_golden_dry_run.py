@@ -27,8 +27,9 @@ sys.path.insert(0, str(TOOLS_DIR))
 
 from ycsb_bench.builds import build_plan  # noqa: E402
 from ycsb_bench.cli import CPU_RESERVE, pool_workers  # noqa: E402
+from ycsb_bench.paths import root_path  # noqa: E402
 from ycsb_bench.runs import dimensions, make_targets, run_plan  # noqa: E402
-from ycsb_bench.specs import root_path, tree_specs  # noqa: E402
+from ycsb_bench.specs import tree_specs  # noqa: E402
 from ycsb_bench.workloads import select_workloads  # noqa: E402
 
 FIXTURE = TESTS_DIR / "fixtures" / "golden_dry_run.json"

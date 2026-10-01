@@ -5,8 +5,9 @@ The whole streamlit viewer and every chart sink is reused from BenchGrid; this
 file is the workload's *declarations only* (metrics, axes, defaults), plus the
 load hook that runs the project normalization from :mod:`.dataset`.
 
-What the viewer *shows* is the workload's UI composition: the tab list lives in
-:mod:`.tabs` (streamlit side) and the growth/trade-off specs in :mod:`.curves`.
+What the viewer *shows* is the workload's UI composition: the shell is
+:mod:`.app` (streamlit side), the tab list :mod:`.tabs` and the growth/trade-off
+specs :mod:`.curves`.
 
 Two shapes of data meet in one tree, which the declarations accommodate:
 
@@ -19,7 +20,8 @@ Two shapes of data meet in one tree, which the declarations accommodate:
 
 from __future__ import annotations
 
-from .bridge import PlotsAdapter
+from benchgrid.plots.adapter import PlotsAdapter
+
 from .dataset import (
     ALL_METRICS,
     DEFAULT_MEASURE,
@@ -79,13 +81,4 @@ def build_adapter(dirs: list[str] | None = None) -> PlotsAdapter:
 adapter = build_adapter()
 
 
-def run_app() -> None:
-    """Entry point for ``streamlit run`` — delegates to the generic shell."""
-    from benchgrid.plots.app import run  # noqa: PLC0415
-
-    from .tabs import TABS  # noqa: PLC0415
-
-    run(adapter, TABS)
-
-
-__all__ = ["BEST_DIRECTION", "DIMS", "adapter", "build_adapter", "run_app"]
+__all__ = ["BEST_DIRECTION", "DIMS", "adapter", "build_adapter"]

@@ -1,5 +1,5 @@
 """
-Project-side load normalization for the YCSB-cpp series frame.
+Read-end normalization: a scanned result tree in, project dimensions out.
 
 This is the enrich hook handed to the generic plots engine (``adapter.enrich``)
 and to :func:`.dataset.build_dataset`.  ``tools/run_all_workloads.py`` writes
@@ -8,31 +8,30 @@ run's *time* and *memory* measures merged in the same row, with the structure's
 own metrics appended after them when the structure reports any (BTree/WTree do,
 ``std::map`` does not — hence the ragged schema).
 
-Everything here is **project knowledge**: how a run is named (folder levels and
-run-id suffixes) and which derived metrics the YCSB numbers imply.  The engine
-owns the scan and every aggregation, never these maps.
+Everything here is **project knowledge**, and it is the read half of
+:mod:`.naming`: the grammar constants (run-id suffixes, structure/version split,
+variant label, measure separator) are imported from there and only vectorized
+here, so the two ends of the pipeline cannot drift.  Everything else the engine
+owns: the scan, and every aggregation after it.
 """
 
 from __future__ import annotations
 
 import operator
+import re
 from functools import reduce
 
 import polars as pl
 
-#: Version recorded for a structure folder without a ``-version`` suffix.
-DEFAULT_VERSION = "default"
-#: Variant folder of a structure that has no node-size knob (std::map).
-NO_NODE_SIZE = "default"
-#: Node size reported for such a structure, so the variant axis stays numeric.
-NO_NODE_BYTES = 0
-#: Separator between the phase and the operation in a measure label.
-MEASURE_SEP = ":"
-
-#: Suffixes tools/run_all_workloads.py appends to a run id for the chosen
-#: insert order / hash algorithm (see its --insert-orders / --hash-algos).
-INSERT_ORDERS: tuple[str, ...] = ("ordered", "hashed")
-HASH_ALGOS: tuple[str, ...] = ("fnv", "sha256")
+from .naming import (
+    DEFAULT_VERSION,
+    HASH_ALGOS,
+    INSERT_ORDERS,
+    MEASURE_SEP,
+    NO_NODE_BYTES,
+    NO_NODE_SIZE_LABEL,
+    STRUCTURE_SEP,
+)
 
 #: Path keys every real series row has; rows without them (e.g. the schema
 #: example CSV living next to the data) are dropped before any cast.
@@ -63,6 +62,11 @@ RUN_ORDER: tuple[str, ...] = (
     "measure",
 )
 
+#: The structure/version split as a pattern: drop the first "<name><sep>" part
+#: (the seed needs no pattern — the schema hands it over as its own path group).
+_VERSION_PREFIX = re.escape(STRUCTURE_SEP)
+_VERSION_PATTERN = rf"^[^{_VERSION_PREFIX}]+{_VERSION_PREFIX}"
+
 
 def _ratio(num: pl.Expr, den: pl.Expr) -> pl.Expr:
     """``num / den``, null where *den* is missing or not positive (std reports none)."""
@@ -70,7 +74,7 @@ def _ratio(num: pl.Expr, den: pl.Expr) -> pl.Expr:
 
 
 def _strip_choices(source: pl.Expr, choices: tuple[str, ...]) -> pl.Expr:
-    """*source* without one trailing ``-<choice>`` (the runner's run-id suffixes)."""
+    """*source* without one trailing ``-<choice>`` (see :func:`.naming.run_name`)."""
     return source.str.replace(rf"-({'|'.join(choices)})$", "")
 
 
@@ -98,13 +102,13 @@ def _labels(df: pl.LazyFrame) -> pl.LazyFrame:
     return df.with_columns(
         # structure folder: "wtree-simple" → symbol "wtree", version "simple";
         # a bare "btree" → symbol "btree", version "default".
-        pl.col("struct_version").str.split("-").list.first().alias("struct_symbol"),
-        pl.when(pl.col("struct_version").str.contains("-"))
-        .then(pl.col("struct_version").str.replace(r"^[^-]+-", ""))
+        pl.col("struct_version").str.split(STRUCTURE_SEP).list.first().alias("struct_symbol"),
+        pl.when(pl.col("struct_version").str.contains(STRUCTURE_SEP))
+        .then(pl.col("struct_version").str.replace(_VERSION_PATTERN, ""))
         .otherwise(pl.lit(DEFAULT_VERSION))
         .alias("version"),
         # variant folder → numeric axis, with a structure without a knob at 0.
-        pl.when(pl.col("node_size") == NO_NODE_SIZE)
+        pl.when(pl.col("node_size") == NO_NODE_SIZE_LABEL)
         .then(pl.lit(NO_NODE_BYTES))
         .otherwise(pl.col("node_size").cast(pl.Int64))
         .alias("target_node_bytes"),
@@ -125,13 +129,13 @@ def _derived(df: pl.LazyFrame) -> pl.LazyFrame:
     return df.with_columns(
         (pl.col("time_us") / 1000.0).alias("time_ms"),
         _ratio(pl.col("time_us"), pl.col("ops_count")).alias("us_per_op"),
-        _ratio(pl.col("ops_count") * 1_000_000.0, pl.col("time_us")).alias(
-            "ops_per_sec"
-        ),
+        _ratio(
+            pl.col("ops_count") * 1_000_000.0, pl.col("time_us")
+        ).alias("ops_per_sec"),
         _ratio(pl.col("overhead"), pl.col("current_size")).alias("overhead_per_key"),
         (pl.col("maxrss_kb") / 1024.0).alias("rss_mb"),
-        # _ratio(pl.col("overhead"), pl.col("node_count")).alias("bytes_per_node"),
-        # _ratio(pl.col("current_size"), pl.col("leaf_nodes")).alias("keys_per_leaf"),
+        _ratio(pl.col("overhead"), pl.col("node_count")).alias("bytes_per_node"),
+        _ratio(pl.col("current_size"), pl.col("leaf_nodes")).alias("keys_per_leaf"),
     )
 
 
@@ -140,9 +144,9 @@ def enrich_series(frame: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyF
     Normalize a scanned series frame into dimensions + measurements.
 
     Works on either an eager or a lazy frame and returns the same flavor, so the
-    app keeps the single-pass lazy scan while a test or the headless CLI can
-    hand in a frame.  Four passes over the (still lazy) plan: drop rows that
-    carry no path metadata, cast the ragged strings, then derive the project
+    app keeps the single-pass lazy scan while a test or the headless questions
+    CLI can hand in a frame.  Four passes over the (still lazy) plan: drop rows
+    that carry no path metadata, cast the ragged strings, then derive the project
     dimensions and metrics, and finally order the rows by run identity so a
     matrix, a curve or an export comes out in a natural, reproducible order.
     """
@@ -162,14 +166,9 @@ def enrich_series(frame: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame | pl.LazyF
 
 
 __all__ = [
-    "DEFAULT_VERSION",
     "FLOAT_METRICS",
-    "HASH_ALGOS",
-    "INSERT_ORDERS",
     "INT_METRICS",
-    "MEASURE_SEP",
-    "NO_NODE_BYTES",
-    "NO_NODE_SIZE",
     "PATH_KEYS",
+    "RUN_ORDER",
     "enrich_series",
 ]

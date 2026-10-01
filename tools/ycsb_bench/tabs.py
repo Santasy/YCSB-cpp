@@ -15,9 +15,9 @@ from __future__ import annotations
 
 from functools import partial
 
+from benchgrid.plots.adapter import Tab
 from benchgrid.plots.app import render_curve, render_pairs, render_panels
 
-from .bridge import Tab
 from .curves import GROWTH_BEST, GROWTH_PER_TARGET, TRADEOFF
 
 TABS = [
