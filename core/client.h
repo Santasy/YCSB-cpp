@@ -9,9 +9,6 @@
 #ifndef YCSB_C_CLIENT_H_
 #define YCSB_C_CLIENT_H_
 
-#include <iostream>
-#include <string>
-
 #include "utils/countdown_latch.h"
 #include "utils/rate_limit.h"
 #include "utils/utils.h"
@@ -20,6 +17,10 @@
 #include "core_workload.h"
 #include "db_database.h"
 #include "measurements.h"
+
+#include <iostream>
+#include <string>
+#include <iomanip>
 
 namespace ycsbc {
 

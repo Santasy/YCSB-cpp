@@ -15,8 +15,9 @@ ROOT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 cd "$ROOT_DIR"
 
 BUILD_DIR="${BTREE_BUILD_DIR:-build-bt-reuse}"
-BTREE_NODE_SIZES="${BTREE_NODE_SIZES:-256 512 1024 2048}"
+BTREE_NODE_SIZES="${BTREE_NODE_SIZES:-256 512 1024 2048 4096 8192 16384}"
 BUILD_TYPE="${BTREE_BUILD_TYPE:-Release}"
+BUILD_JOBS="${BUILD_JOBS:-$(nproc)}"
 
 COLLECT_DIR="${BTREE_COLLECT_DIR:-build-bt}"
 mkdir -p "${COLLECT_DIR}"
@@ -27,7 +28,7 @@ for n in $BTREE_NODE_SIZES; do
 		-DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
 		-DBIND_BTREE=ON \
 		-DBTREE_TARGET_NODE_SIZE="$n"
-	cmake --build "$BUILD_DIR" -j"$(nproc)"
+	cmake --build "$BUILD_DIR" -j"$BUILD_JOBS"
 	cp "$BUILD_DIR/ycsb" "$COLLECT_DIR/ycsb-bt-${n}"
 done
 rm -r "$BUILD_DIR"

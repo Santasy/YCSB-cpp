@@ -7,3 +7,6 @@
 [submodule "adapters/data-structures/wtree/module-wtree"]
 	path = adapters/data-structures/wtree/module-wtree
 	url = https://github.com/Santasy/WTree
+[submodule "tools/BenchGrid"]
+	path = tools/BenchGrid
+	url = git@github.com:Santasy/BenchGrid.git

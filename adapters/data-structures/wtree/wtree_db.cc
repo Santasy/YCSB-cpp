@@ -73,12 +73,7 @@ DBInterface::StoreStats WTreeDB::GetStats(const std::string &table) {
     // declares fullness()/overhead() stubs), so walk the tree once with the
     // library's profiler. total_bytes is the node footprint beyond the stored
     // key/value strings (node base fields + unused key cells + pointer cells).
-    //
-    // NOTE: a fresh WTreeMemoryInstrument is already zero-initialized (its
-    // members use in-class initializers and `levels` starts empty), so we must
-    // NOT call reg.clean() here: that helper's std::fill end pointer is
-    // computed with pointer arithmetic on unsigned long (sizeof() bytes, not
-    // elements) and overruns the struct, smashing the enclosing stack frame.
+
     WTreeLib::WTreeMemoryInstrument reg;
     WTreeLib::WTreeProfiler<WTreeParams>::check_statistics(*db_.tree(), reg);
     stats.overhead_bytes = reg.total_bytes;

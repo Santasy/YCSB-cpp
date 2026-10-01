@@ -22,6 +22,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <cstdint>
 
 #include "btree/btree_map.h"
 #include "core/db_interfaces.h"

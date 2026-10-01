@@ -42,7 +42,7 @@ Major refactors were applied to the benchmark framework to address these issues,
     * `scripts/create_benchmark_graphs.py`
     * `scripts/merge_benchmark_csvs.py`
     * `scripts/build_btree_variants.sh` (one `ycsb` binary per cpp-btree `BTREE_TARGET_NODE_SIZE`)
-    * `scripts/build_wtree_variants.sh` (one `ycsb` binary per WTree `BTREE_TARGET_NODE_SIZE`)
+     * `scripts/build_wtree_variants.sh` (one `ycsb` binary per WTree `WTREE_TARGET_NODE_BYTES`)
 
 ### Docs, utilities, and tests
 

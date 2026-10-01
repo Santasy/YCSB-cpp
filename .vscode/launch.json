@@ -5,6 +5,29 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${PYTHONPATH}:${fileDirname}:${workspaceFolder}/tools/:${workspaceFolder}/tools/BenchGrid/"
+            },
+            "args": [
+                "--dry-run",
+                // "--skip-run",
+                // "--ds",
+                // "std",
+                "--workloads",
+                "workloada",
+                "workloadb",
+                "workloadc",
+                "workloadd",
+                "workloade",
+                "workloadf"
+            ]
+        },
+        {
             "name": "Debug YCSB - Legacy Workload A (null, Load)",
             "type": "cppdbg",
             "request": "launch",
@@ -45,6 +68,32 @@
                 "resultformat=csv",
                 "-p",
                 "output.file=${workspaceFolder}/storage/out_run.log",
+            ],
+            "cwd": "${workspaceFolder}",
+            "setupCommands": [
+                {
+                    "text": "set sysroot /",
+                    "ignoreFailures": true,
+                },
+            ]
+        },
+        {
+            "name": "Load + Run",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/${input:buildFolder}/ycsb",
+            "args": [
+                "-run",
+                "-load",
+                "-db",
+                "wtree",
+                "-P",
+                "workloads/workload_kv_ingest",
+                "-s",
+                "-p",
+                "resultformat=csv",
+                "-p",
+                "output.file=${workspaceFolder}/storage/out_loadrun.log",
             ],
             "cwd": "${workspaceFolder}",
             "setupCommands": [
@@ -256,6 +305,18 @@
             "program": "${workspaceFolder}/${input:buildFolder}/ycsb_tests",
             "args": [],
             "cwd": "${workspaceFolder}",
+        },
+        {
+            "name": "Streamlit analysis",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "tools/plot_all_workloads.py"
+            ],
+            "cwd": "${workspaceFolder}",
+            "justMyCode": true
         },
     ],
     "inputs": [
