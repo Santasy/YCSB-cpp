@@ -1,0 +1,40 @@
+{
+  "ycsb": {
+    "name": "ycsb",
+    "folder_levels": [
+      {
+        "pattern": "^(?P<struct_version>[A-Za-z0-9][A-Za-z0-9_.-]*)$",
+        "comment": "structure folder written by tools/run_all_workloads.py: a bare structure (btree, wtree, std) or structure-version (wtree-simple, wtree-split)"
+      },
+      {
+        "pattern": "^(?P<node_size>default|[1-9][0-9]*)$",
+        "comment": "node-size variant folder, or 'default' for a structure without a node-size knob (std::map)"
+      }
+    ],
+    "file_pattern": {
+      "pattern": "^(?P<run_id>.+)-seed-(?P<seed>[0-9]+)\\.csv$",
+      "extensions": ["csv"],
+      "format": "lines",
+      "object_marker": ""
+    },
+    "line_schema": {
+      "key_sep": null,
+      "value_sep": ",",
+      "metrics": {
+        "0": "phase",
+        "1": "operation",
+        "2": "ops_count",
+        "3": "current_size",
+        "4": "time_us",
+        "5": "maxrss_kb",
+        "6": "overhead",
+        "7": "height",
+        "8": "leaf_nodes",
+        "9": "internal_nodes"
+      },
+      "cast": "str",
+      "ragged": true,
+      "comment": "one headerless series row per (phase, operation) with time and memory merged; the last three columns are the structure's own metrics, absent (null) for structures that report none. ragged=true because btree/wtree rows carry those three extra fields and std::map rows do not, in the same tree."
+    }
+  }
+}
