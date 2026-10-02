@@ -318,6 +318,17 @@
             "cwd": "${workspaceFolder}",
             "justMyCode": true
         },
+        {
+            "name": "debugpy questions",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "tools.ycsb_bench.questions",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${PYTHONPATH}:${fileDirname}:${workspaceFolder}/tools/:${workspaceFolder}/tools/BenchGrid/"
+            },
+            "args": []
+        },
     ],
     "inputs": [
         {
