@@ -133,10 +133,13 @@ def run_plan(
     result_format: str,
     extra_properties: Sequence[Path],
     status: bool,
+    dataset_only: bool = False,
 ) -> WorkPlan:
+    # ``-datasets`` writes both dataset files and stops; ``-load -run`` would
+    # also build the index and execute every operation, which is the measured
+    # stage's job, not the preparation stage's.
     fixed = [
-        "-load",
-        "-run",
+        *(("-datasets",) if dataset_only else ("-load", "-run")),
         "-db",
         spec.dbname,
         "-threads",
@@ -203,9 +206,10 @@ def dataset_pool(
     generator per workload and seed is race free and the pool can take the whole
     worker budget instead of crawling one dataset at a time.
 
-    ``workers`` is the ceiling for that budget, not a fixed count: generation is
-    CPU *and* memory bound (one ``-threads 1`` process per worker, each holding
-    the whole dataset in its index), so lower it when the datasets are big.
+    ``workers`` is the ceiling for that budget, not a fixed count.  ``-datasets``
+    only streams the files out, so a generator costs a few MB of RSS whatever the
+    record count; lower it only when the workers compete for page cache on the
+    dataset files themselves.
     """
     return CommandPool(
         name="datasets",

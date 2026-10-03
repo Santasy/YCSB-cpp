@@ -22,9 +22,18 @@ int main(const int argc, const char *argv[]) {
     ycsbc::utils::Properties props;
     ParseCommandLine(argc, argv, props);
 
-    const bool do_load = (props.GetProperty("doload", "false") == "true");
-    const bool do_transaction =
+    // Dataset-only mode writes both dataset files and stops: no index is built
+    // and no operation runs.  Both phases are still visited, because each one
+    // owns a dataset.
+    const bool generate_only =
+        (props.GetProperty("generate_only", "false") == "true");
+    bool do_load = (props.GetProperty("doload", "false") == "true");
+    bool do_transaction =
         (props.GetProperty("dotransaction", "false") == "true");
+    if(generate_only) {
+        do_load = true;
+        do_transaction = true;
+    }
     if(!do_load && !do_transaction) {
         std::cerr << "No operation to do" << std::endl;
         exit(1);
@@ -136,7 +145,7 @@ int main(const int argc, const char *argv[]) {
     // Data-structure adapters have no persistence and are created once for both
     // phases; storage engines get a fresh instance per phase/thread below.
     ycsbc::DB *shared_db = nullptr;
-    if(is_data_structure) {
+    if(is_data_structure && !generate_only) {
         shared_db = ycsbc::DBFactory::CreateDB(&props, measurements);
         if(shared_db == nullptr) {
             std::cerr << "Unknown data-structure name " << db_name << std::endl;
@@ -216,6 +225,15 @@ int main(const int argc, const char *argv[]) {
             }
             // txn_datasets.back()->DEBUG(txn_thread_ops[i]);
             txn_datasets.back()->Open(txn_thread_ops[i]);
+        }
+
+        // Dataset-only mode: every transaction dataset is on disk now, so skip
+        // the DB instances, the client threads and the measurement window.
+        if(generate_only) {
+            info_os << "Dataset-only mode: transaction datasets written, "
+                       "skipping the transaction run"
+                    << std::endl;
+            return 0;
         }
 
         // Create fresh DB instances for the transaction phase, or reuse the
@@ -342,6 +360,10 @@ void ParseCommandLine(int argc, const char *argv[],
                   strcmp(argv[argindex], "-t") == 0) {
             props.SetProperty("dotransaction", "true");
             argindex++;
+        } else if(strcmp(argv[argindex], "-datasets") == 0) {
+            // Write the load and transaction dataset files, run nothing.
+            props.SetProperty("generate_only", "true");
+            argindex++;
         } else if(strcmp(argv[argindex], "-threads") == 0) {
             argindex++;
             if(argindex >= argc) {
@@ -424,6 +446,8 @@ void UsageMessage(const char *command) {
            "  -load: run the loading phase of the workload\n"
            "  -t: run the transactions phase of the workload\n"
            "  -run: same as -t\n"
+           "  -datasets: only write the load and transaction dataset files, "
+           "then stop\n"
            "  -threads n: execute using n threads (default: 1)\n"
            "  -db dbname: specify the name of the DB to use (default: basic)\n"
            "  -P propertyfile: load properties from the given file. Multiple "

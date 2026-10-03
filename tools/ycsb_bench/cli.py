@@ -136,7 +136,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--dataset-workers",
         type=positive_int,
         default=None,
-        help="dataset generation workers (default: every core; lower it for big datasets)",
+        help="dataset generation workers (default: every core)",
     )
     parser.add_argument(
         "--build-workers",
@@ -318,9 +318,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if rc != 0:
                     return rc
 
-        # Step 2 — one load+run per workload generates the op streams that every
-        # structure and node size reuses.  Serial on purpose: the engine caches
-        # datasets by path, so two generators on one dataset would race.
+        # Step 2 — one -datasets command per workload and seed writes the op
+        # streams that every structure and node size reuses.  Nothing is loaded
+        # into an index and no operation runs.
         if not args.skip_datasets and workloads:
             print(
             "\n=== Step 2/3: generate the datasets (one run per workload and seed) ==="
@@ -353,6 +353,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     args.result_format,
                     extra_properties,
                     not args.no_status,
+                    dataset_only=True,
                 )
                 prepare_commands = prepare_plan.build_commands()
                 record(prepare_dir, "datasets", prepare_commands)

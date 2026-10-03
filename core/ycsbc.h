@@ -60,6 +60,14 @@ bool StepLoad(ycsbc::utils::Properties &props, ycsbc::CoreWorkload &workload,
     }
     load_dataset.Open(total_ops);
 
+    // Dataset-only mode: the file was all we were asked for.  Loading it into
+    // a DB would rebuild an index nobody measures, which for 2M records is the
+    // expensive half of the whole command.
+    if(ycsbc::utils::StrToBool(
+           props.GetProperty("generate_only", "false"))) {
+        return true;
+    }
+
     ycsbc::utils::Timer<double> timer;
 
     // Use a dedicated DB instance for the load phase, or the shared
