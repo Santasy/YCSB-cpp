@@ -14,7 +14,14 @@ from benchgrid import (
     WorkRecord,
 )
 
-from .naming import LOGS_DIR, RESULTS_DIR, run_name, structure_folder, variant_label
+from .naming import (
+    LOGS_DIR,
+    RESULTS_DIR,
+    dataset_folder,
+    run_name,
+    structure_folder,
+    variant_label,
+)
 from .paths import ROOT
 from .specs import TreeSpec, binary_path
 
@@ -47,6 +54,23 @@ def dimensions(
     ]
 
 
+def declared_count(workload: Path, key: str) -> int | None:
+    """The value a workload file declares for *key*, so the dataset path can name it."""
+    if not workload.is_file():
+        return None
+    for line in workload.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith(("#", "!")):
+            continue
+        name, _, value = line.partition("=")
+        if name.strip() == key:
+            try:
+                return int(value.strip())
+            except ValueError:
+                return None
+    return None
+
+
 def make_targets(
     spec: TreeSpec,
     node_size: int | None,
@@ -54,17 +78,31 @@ def make_targets(
     grid: Sequence[tuple[str | None, str | None, int]],
     output_dir: Path,
     dataset_dir: Path,
+    recordcount: int | None = None,
+    operationcount: int | None = None,
 ) -> list[RunTarget]:
     if spec.node_env is None:
         node_size = None
     targets: list[RunTarget] = []
     for workload in workloads:
+        # The effective counts: the command line wins, else what the workload
+        # declares, so the dataset folder says which dataset it holds.
+        run_records = (
+            recordcount
+            if recordcount is not None
+            else declared_count(workload, "recordcount")
+        )
+        run_ops = (
+            operationcount
+            if operationcount is not None
+            else declared_count(workload, "operationcount")
+        )
         for insert_order, hash_algo, seed in grid:
             name = run_name(workload.name, insert_order, hash_algo, seed)
             structure = structure_folder(spec.name)
             folder = variant_label(node_size)
             result = output_dir / RESULTS_DIR / structure / folder / f"{name}.csv"
-            target_dataset = dataset_dir / structure / folder / name
+            target_dataset = dataset_dir / dataset_folder(name, run_records, run_ops)
             log = output_dir / LOGS_DIR / f"{structure}-{folder}-{name}.log"
             targets.append(
                 RunTarget(
@@ -151,6 +189,29 @@ def run_plan(
         single_core=True,
         iteration=IterationPolicy.FREEZE_DIMENSION,
         freeze_key=FREEZE_KEY,
+    )
+
+
+def dataset_pool(
+    commands: Sequence[WorkCommand], workers: int | None, cpu_reserve: int
+) -> CommandPool:
+    """
+    The dataset-generation pool: labelled apart, and wide open.
+
+    Every target owns a dataset path that nothing else writes -- the path spells
+    out workload, insert order, hash algo, seed and both counts -- so one
+    generator per workload and seed is race free and the pool can take the whole
+    worker budget instead of crawling one dataset at a time.
+
+    ``workers`` is the ceiling for that budget, not a fixed count: generation is
+    CPU *and* memory bound (one ``-threads 1`` process per worker, each holding
+    the whole dataset in its index), so lower it when the datasets are big.
+    """
+    return CommandPool(
+        name="datasets",
+        commands=commands,
+        threads=workers,
+        cpu_reserve=cpu_reserve,
     )
 
 

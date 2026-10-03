@@ -26,7 +26,7 @@ ROOT = TOOLS_DIR.parent
 sys.path.insert(0, str(TOOLS_DIR))
 
 from ycsb_bench.builds import build_plan  # noqa: E402
-from ycsb_bench.cli import CPU_RESERVE, pool_workers  # noqa: E402
+from ycsb_bench.cli import build_workers_for, pool_workers  # noqa: E402
 from ycsb_bench.paths import root_path  # noqa: E402
 from ycsb_bench.runs import dimensions, make_targets, run_plan  # noqa: E402
 from ycsb_bench.specs import tree_specs  # noqa: E402
@@ -45,13 +45,16 @@ DRY_RUN_ARGS = [
     "--recordcount", "10",
     "--operationcount", "10",
     "--no-status",
+    "--build-jobs", "3",
     "--output-dir", ".cache/golden/output",
     "--binary-root", ".cache/golden/binaries",
 ]
 
-COMMAND_LINE = re.compile(r"^\[(?P<label>build|run)\]\s+(?P<id>\d+): (?P<cmd>.*)$")
+COMMAND_LINE = re.compile(
+    r"^\[(?P<label>build|datasets|run)\]\s+(?P<id>\d+): (?P<cmd>.*)$"
+)
 POOL_LINE = re.compile(
-    r"^=== (?P<kind>Build|Run) pool: (?P<count>\d+) command\(s\), "
+    r"^=== (?P<kind>Build|Dataset|Run) pool: (?P<count>\d+) command\(s\), "
     r"(?P<workers>\d+) worker\(s\) ===$"
 )
 
@@ -71,7 +74,7 @@ def render_dry_run() -> str:
 
 
 def parse(output: str) -> dict[str, object]:
-    commands: dict[str, list[str]] = {"build": [], "run": []}
+    commands: dict[str, list[str]] = {"build": [], "datasets": [], "run": []}
     pools: dict[str, dict[str, int]] = {}
     for raw_line in output.splitlines():
         line = normalize(raw_line)
@@ -90,13 +93,25 @@ def parse(output: str) -> dict[str, object]:
 
 
 def check_pool_budgets(pools: dict[str, dict[str, int]]) -> list[str]:
+    """
+    The three stages budget workers differently, on purpose:
+
+    * build — one variant script at a time; each cmake build already takes
+      every core we hand it through ``-j``,
+    * datasets and run — every core left, capped by the command count.  Both are
+      safe to saturate because a dataset path is owned by one workload and seed.
+    """
+    rules = {
+        "build": lambda count: build_workers_for(None, count),
+        "dataset": lambda count: pool_workers(None, count),
+        "run": lambda count: pool_workers(None, count),
+    }
     failures: list[str] = []
     for kind, entry in pools.items():
-        expected = pool_workers(None, entry["count"])
+        expected = rules[kind](entry["count"])
         if entry["workers"] != expected:
             failures.append(
-                f"{kind} pool used {entry['workers']} workers, "
-                f"expected {expected} (cpus - {CPU_RESERVE}, capped by count)"
+                f"{kind} pool used {entry['workers']} workers, expected {expected}"
             )
     return failures
 

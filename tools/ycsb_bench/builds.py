@@ -63,14 +63,18 @@ def build_plan(
             }
         )
     else:
-        for node_size in variants:
-            if node_size is None:
-                continue
-            build_dir = output_dir / "build" / spec.prefix / str(node_size)
-            log = output_dir / "logs" / f"build-{spec.prefix}-{node_size}.log"
+        sizes = [size for size in variants if size is not None]
+        if sizes:
+            # One command for every size.  The variant scripts loop over
+            # <PREFIX>_NODE_SIZES inside a single CMake dir on purpose, so cmake
+            # configures once and then recompiles only the adapter per size; one
+            # command per size would throw that reuse away and rebuild the world
+            # for every variant.
+            build_dir = output_dir / "build" / f"{spec.prefix}-reuse"
+            log = output_dir / "logs" / f"build-{spec.prefix}.log"
             records.append(
                 {
-                    spec.node_env: assignment_value(str(node_size)),
+                    spec.node_env: assignment_value(" ".join(str(s) for s in sizes)),
                     spec.build_dir_env: assignment_value(build_dir),
                     spec.collect_dir_env: assignment_value(
                         binary_dir(binary_root, spec)
