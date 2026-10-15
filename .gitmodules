@@ -9,4 +9,4 @@
 	url = https://github.com/Santasy/WTree
 [submodule "tools/BenchGrid"]
 	path = tools/BenchGrid
-	url = git@github.com:Santasy/BenchGrid.git
+	url = https://github.com/Santasy/BenchGrid.git

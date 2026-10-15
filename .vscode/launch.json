@@ -319,6 +319,30 @@
             "justMyCode": true
         },
         {
+            "name": "debugpy: run_all_workloads",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "tools.run_all_workloads",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${PYTHONPATH}:${fileDirname}:${workspaceFolder}/tools/:${workspaceFolder}/tools/BenchGrid/"
+            },
+            "args": [
+                "--dry-run",
+                // "--skip-run",
+                // "--ds",
+                // "std",
+                "--workloads",
+                "workloada",
+                "workloadb",
+                "workloadc",
+                "workloadd",
+                "workloade",
+                "workloadf"
+            ]
+        },
+        {
             "name": "debugpy questions",
             "type": "debugpy",
             "request": "launch",
