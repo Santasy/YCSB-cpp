@@ -60,6 +60,7 @@ DBInterface::Status CppBTreeDB::Range(const std::string &table, Slice key,
 DBInterface::StoreStats CppBTreeDB::GetStats(const std::string &table) {
     StoreStats stats;
     stats.current_size = db_.size();
+
     // cpp-btree reports its own actual node footprint directly; taller/less
     // full trees cost more bytes, unlike std::map's flat per-entry estimate.
     stats.overhead_bytes =
@@ -72,6 +73,7 @@ DBInterface::StoreStats CppBTreeDB::GetStats(const std::string &table) {
                              std::to_string(db_.leaf_nodes()));
     stats.extra.emplace_back("btree_internal_nodes",
                              std::to_string(db_.internal_nodes()));
+    stats.extra.emplace_back("btree_fullness", std::to_string(db_.fullness()));
     return stats;
 }
 

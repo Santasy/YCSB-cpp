@@ -59,13 +59,14 @@ DBInterface::Status StdMapDB::Range(const std::string &table, Slice key,
 DBInterface::StoreStats StdMapDB::GetStats(const std::string &table) {
     StoreStats stats;
     stats.current_size = db_.size();
-    // Rough std::map footprint estimate: per entry, the rb-tree node carries
-    // the value pair plus tree linkage (3 pointers + color byte + padding).
-    const uint64_t tree_linkage_bytes = 32;
-    const uint64_t entry_bytes =
-        sizeof(std::pair<const std::string, std::string>);
-    stats.overhead_bytes =
-        stats.current_size * (entry_bytes + tree_linkage_bytes);
+
+    using _value_type = map_type::value_type;
+    using _node_type = std::_Rb_tree_node<_value_type>;
+
+    const ulong value_size = sizeof(_value_type);
+    const ulong node_size = sizeof(_node_type);
+
+    stats.overhead_bytes = stats.current_size * (node_size - value_size);
     return stats;
 }
 

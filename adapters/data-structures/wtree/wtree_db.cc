@@ -10,18 +10,12 @@
 #include <type_traits>
 
 #include "core/db_factory.h"
+#include "core/db_interfaces.h"
 #include "wtree/optional/profile.hpp"
 
 namespace {
 const std::string PROP_CLEAR = "wtree.clear";
 const std::string PROP_CLEAR_DEFAULT = "false";
-
-// WTreeProfiler is templated on the tree's params type (WTreeMapParams), but
-// the container re-declares params_type as a private alias in
-// WTreeUniqueContainer. Recover it from the public tree() accessor instead:
-// tree() -> WTree<Params>*, strip the pointer, read the public Params.
-using WTreeParams = typename std::remove_pointer<
-    decltype(std::declval<ycsbc::WTreeMap &>().tree())>::type::params_type;
 } // namespace
 
 namespace ycsbc {
@@ -74,20 +68,26 @@ DBInterface::StoreStats WTreeDB::GetStats(const std::string &table) {
     // library's profiler. total_bytes is the node footprint beyond the stored
     // key/value strings (node base fields + unused key cells + pointer cells).
 
-    WTreeLib::WTreeMemoryInstrument reg;
-    WTreeLib::WTreeProfiler<WTreeParams>::check_statistics(*db_.tree(), reg);
-    stats.overhead_bytes = reg.total_bytes;
+    auto wtstats = db_.collect_stats();
+
+    stats.overhead_bytes = wtstats.total_overhead();
     // Structure-specific metrics land in the container's schema.csv as extra
     // columns (height, leaf/internal node counts), mirroring the btree adapter.
-    stats.extra.emplace_back("wtree_height", std::to_string(reg.height));
+    stats.extra.emplace_back("wtree_height", std::to_string(wtstats.height));
     stats.extra.emplace_back("wtree_leaf_nodes",
-                             std::to_string(reg.num_leaves));
+                             std::to_string(wtstats.leaf_nodes));
     stats.extra.emplace_back("wtree_internal_nodes",
-                             std::to_string(reg.num_internals));
+                             std::to_string(wtstats.internal_nodes));
+    stats.extra.emplace_back("wtree_fullness",
+                             std::to_string(wtstats.fullness()));
+    stats.extra.emplace_back("wtree_occupancy",
+                             std::to_string(wtstats.occupancy()));
     return stats;
 }
 
-DBInterface *NewWTreeDB() { return new WTreeDB; }
+DBInterface *NewWTreeDB() {
+    return reinterpret_cast<DBInterface *>(new WTreeDB);
+}
 
 const bool registered = DBFactory::RegisterDataStructure("wtree", NewWTreeDB);
 

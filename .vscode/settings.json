@@ -75,5 +75,19 @@
         "typeinfo": "cpp",
         "variant": "cpp"
     },
-    "makefile.configureOnOpen": true
+    "makefile.configureOnOpen": false,
+    "workbench.colorCustomizations": {
+        "editor.lineHighlightBackground": "#1073cf2d",
+        "editor.lineHighlightBorder": "#9fced11f",
+        "titleBar.activeBackground": "#d4e2e2",
+        "titleBar.activeForeground": "#000000",
+        "titleBar.inactiveBackground": "#b5cece",
+        "titleBar.inactiveForeground": "#000000",
+        "activityBar.background": "#96baba",
+        "activityBar.foreground": "#000000",
+        "activityBar.inactiveForeground": "#00000066",
+        "activityBar.border": "#00000033",
+        "statusBar.background": "#96baba",
+        "statusBar.foreground": "#000000"
+    }
 }

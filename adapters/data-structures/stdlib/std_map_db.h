@@ -26,6 +26,8 @@ namespace ycsbc {
 
 class StdMapDB : public DBInterface {
   public:
+    using map_type = std::map<const std::string, std::string>;
+
     StdMapDB() {}
     ~StdMapDB() override {}
 
@@ -44,7 +46,7 @@ class StdMapDB : public DBInterface {
     StoreStats GetStats(const std::string &table) override;
 
   private:
-    std::map<std::string, std::string> db_;
+    map_type db_;
 };
 
 DBInterface *NewStdMapDB();

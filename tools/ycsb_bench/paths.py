@@ -29,11 +29,10 @@ SCHEMA_FILE: Path = TOOLS_DIR / "ycsb.schema.json"
 DATA_DIRS_ENV = "YCSB_BENCH_DATA_DIRS"
 
 #: Where a run writes by default (run phase) — results, logs, build, datasets.
-DEFAULT_OUTPUT_DIR: Path = ROOT / "storage" / "logen"
+DEFAULT_OUTPUT_DIR: Path = ROOT / "storage"
 
 #: Roots scanned by default (read phase): the run phase's result tree.
-# DEFAULT_DATA_DIRS: list[str] = [str(DEFAULT_OUTPUT_DIR / "results")]
-DEFAULT_DATA_DIRS: list[str] = [str(DEFAULT_OUTPUT_DIR)]
+DEFAULT_DATA_DIRS: list[str] = [str(DEFAULT_OUTPUT_DIR / "results")]
 
 #: Where the questions CLI writes its CSV tables by default.
 OUTPUT_DIR: Path = _HERE / "output"
