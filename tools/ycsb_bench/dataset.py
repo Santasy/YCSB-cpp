@@ -18,6 +18,7 @@ growth curves are drawn against.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from benchgrid import Dataset, read_schemas, scan_csv_lazy
@@ -100,7 +101,9 @@ SOURCE_METRICS: dict[str, list[str]] = {SOURCE: SERIES_METRICS}
 
 #: metric → source; plots resolve their data frame from this.
 METRIC_SOURCE: dict[str, str] = {
-    metric: source for source, metrics in SOURCE_METRICS.items() for metric in metrics
+    metric: source
+    for source, metrics in SOURCE_METRICS.items()
+    for metric in metrics
 }
 
 
@@ -119,8 +122,16 @@ def build_dataset(
     """
     schemas = schemas or read_schemas(SCHEMA_FILE)
     dirs = data_dirs or configured_data_dirs()
+    parsed_dirs = []
+    for d in dirs:
+        path = Path(d)
+        if path.name != "results":
+            path = path / "results"
+        parsed_dirs.append(path)
     return Dataset(
-        frames={SOURCE: enrich_series(scan_csv_lazy(dirs, schemas[SOURCE]))},
+        frames={
+            SOURCE: enrich_series(scan_csv_lazy(parsed_dirs, schemas[SOURCE]))
+        },
         schemas=schemas,
         metric_keys={SOURCE: frozenset(SERIES_METRICS)},
     )

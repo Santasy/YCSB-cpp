@@ -313,7 +313,10 @@
             "module": "streamlit",
             "args": [
                 "run",
-                "tools/plot_all_workloads.py"
+                "tools/plot_all_workloads.py",
+                "--",
+                "--output-dir",
+                "./storage/logen_1M_261015"
             ],
             "cwd": "${workspaceFolder}",
             "justMyCode": true

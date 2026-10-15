@@ -10,15 +10,32 @@ list :mod:`.tabs`.  Point it at a result tree of the run phase with
 ``YCSB_BENCH_DATA_DIRS=<root>[:<root>]``.
 """
 
-from .adapter import adapter
+import argparse
+from collections.abc import Sequence
+
+from benchgrid.plots.app import run
+
+from .adapter import adapter, build_adapter
 from .tabs import TABS
+from .paths import DEFAULT_OUTPUT_DIR, DEFAULT_DATA_DIRS
 
 
-def run_app() -> None:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Build data-structure binaries and run their workloads."
+    )
+    parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
+    return parser.parse_args(argv)
+
+
+def run_app(argv: Sequence[str] | None = None) -> int:
     """Entry point for ``streamlit run`` — delegates to the generic shell."""
-    from benchgrid.plots.app import run  # noqa: PLC0415
 
-    run(adapter, TABS)
+    args = parse_args(argv)
+    _adapter = build_adapter(dirs=[args.output_dir])
+
+    run(_adapter, TABS)
+    return 0
 
 
 if __name__ == "__main__":
